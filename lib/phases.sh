@@ -597,8 +597,11 @@ _soft_mirror_repo() {
   fi
   if [[ -d $dest ]]; then
     log_cmd git -C "$dest" fetch -q --all --prune || true
+    failed_del "software:arca.git"
+  elif log_cmd git clone -q --mirror "$ARCA_DIR" "$dest"; then
+    failed_del "software:arca.git"
   else
-    log_cmd git clone -q --mirror "$ARCA_DIR" "$dest" || failed_add "software:arca.git" "clonado fallido"
+    failed_add "software:arca.git" "clonado fallido"
   fi
 }
 

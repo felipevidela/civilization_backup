@@ -72,6 +72,7 @@ if (( CHECK )); then
   software_load
   for par in "kiwix_android:kiwix/kiwix-android" "organicmaps:organicmaps/organicmaps" "llamacpp:ggml-org/llama.cpp"; do
     clave=${par%%:*}; repo=${par#*:}
+    [[ $clave == llamacpp && ${LLM_ENABLED:-1} != 1 ]] && continue
     t=$(fetch_github_tag "$repo" 2>/dev/null || echo "?"); v=$(json_get "$SOFTWARE_JSON" "$clave" version || true)
     [[ $t != "${v:-}" ]] && printf '  %-55s release nueva %s (instalada: %s)\n' "$repo" "$t" "${v:-ninguna}"
   done
