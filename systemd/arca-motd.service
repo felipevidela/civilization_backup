@@ -1,0 +1,11 @@
+[Unit]
+Description=arca: escribir estado (IP, Kiwix, espacio) en /etc/motd
+After=network-online.target kiwix.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/arca/lib/motd.sh
+
+[Install]
+WantedBy=multi-user.target

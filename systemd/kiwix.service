@@ -1,0 +1,17 @@
+[Unit]
+Description=arca: servidor Kiwix (kiwix-serve) en el puerto 8080
+Documentation=https://github.com/felipevidela/civilization_backup
+After=network.target srv-respaldo.mount
+Requires=srv-respaldo.mount
+
+[Service]
+Type=simple
+User=__USUARIO__
+Group=__USUARIO__
+ExecStart=/usr/bin/kiwix-serve --library /srv/respaldo/library.xml --port 8080 --address 0.0.0.0
+Restart=always
+RestartSec=5
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

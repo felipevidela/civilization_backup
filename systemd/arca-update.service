@@ -1,0 +1,12 @@
+[Unit]
+Description=arca: actualización periódica de ZIM, manuales y software
+Documentation=https://github.com/felipevidela/civilization_backup
+After=network-online.target srv-respaldo.mount
+Wants=network-online.target
+Requires=srv-respaldo.mount
+
+[Service]
+Type=oneshot
+ExecStart=/opt/arca/update.sh
+Nice=10
+IOSchedulingClass=idle

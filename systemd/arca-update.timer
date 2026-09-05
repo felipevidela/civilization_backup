@@ -1,0 +1,11 @@
+[Unit]
+Description=arca: ejecutar update.sh una vez al mes
+
+[Timer]
+OnCalendar=monthly
+Persistent=true
+RandomizedDelaySec=1h
+Unit=arca-update.service
+
+[Install]
+WantedBy=timers.target
