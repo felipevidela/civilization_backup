@@ -82,6 +82,29 @@ texto es el mapa para llegar a ellas.
     Con solo un editor hexadecimal y la especificación se puede recuperar un archivo a mano.
 - **Montar** es decirle al sistema operativo dónde exponer esa partición (`/srv/respaldo`).
 
+## 7 bis. El medio se degrada: cuánto dura cada cosa
+
+Los formatos duran para siempre; los soportes, no. Órdenes de magnitud realistas:
+
+| Soporte | Vida útil razonable | Cómo falla |
+|---|---|---|
+| HDD encendido a diario | 5 a 8 años | mecánico: no arranca, sectores ilegibles |
+| HDD guardado, girado y verificado una vez al año | 5 a 15 años | se pega el motor si nunca se enciende |
+| SSD o pendrive **desconectado** | no confiar más allá de 1 o 2 años | las celdas pierden carga en silencio |
+| SSD en uso | 5 a 10 años | agota ciclos de escritura |
+| DVD grabable de buena calidad, guardado oscuro y seco | 5 a 20 años, muy variable | se desprende la capa |
+| Papel común guardado seco | décadas | fuego, agua, insectos |
+| Fuente de poder y placa del PC | 8 a 15 años | condensadores |
+
+Consecuencias prácticas:
+
+1. **Un disco no es un archivo.** Tres copias, dos medios distintos, una fuera de la casa.
+2. **Verifica una vez al año** (`check.sh --scrub`): la corrupción silenciosa no avisa, y una
+   copia hecha desde datos ya corruptos propaga el daño.
+3. **Para archivo frío, HDD antes que SSD.** Enciéndelo una vez al año, cópialo y apágalo.
+4. **Cambia el disco a los 5 años**, mientras todavía se puede leer entero.
+5. **Lo que importe de verdad, imprímelo** (`printkit/`). El papel no necesita controlador.
+
 ## 8. Verificar que nada cambió: SHA-256
 - Una **función hash** produce un resumen de 256 bits (64 caracteres hex) de cualquier archivo;
   un solo bit distinto cambia por completo el resumen y es impracticable fabricar dos archivos con

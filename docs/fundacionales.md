@@ -1,5 +1,8 @@
 # Descubrimientos y documentos fundacionales
 
+> **Legado, no año 0.** Estos textos importan para entender de dónde salió todo, no para pasar
+> el invierno. Léelos cuando el agua, la comida y la salud ya estén resueltas.
+
 Textos originales, en el idioma en que se escribieron o en traducción de dominio público, de los
 descubrimientos que sostienen la civilización. Están en `/srv/respaldo/libros/fundacionales/`.
 Para entender cada uno con lenguaje de hoy, busca el título en Wikipedia (Kiwix, puerto 8080)

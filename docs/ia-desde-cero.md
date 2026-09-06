@@ -1,5 +1,9 @@
 # Cómo crear una inteligencia artificial desde cero
 
+> **Legado, no año 0.** Nada de esto hace falta para sobrevivir los primeros quince años: está
+> guardado por si una generación futura tiene comida, electricidad y tiempo. Si estás en la
+> semana 1, esto no es lo que necesitas leer (ver `docs/RECOVERY_ROADMAP.md`).
+
 Guía de ruta para reconstruir, con lo que hay en este disco, un modelo de lenguaje como el
 que trae arca. Todo lo citado está en `/srv/respaldo/`: los libros y artículos en
 `manuales/ia/`, el código en `software/ia/codigo/`, las librerías de Python en
