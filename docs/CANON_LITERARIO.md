@@ -16,7 +16,7 @@ alguien siga vivo.
 | **Harvard Classics** (51 volúmenes) | El canon universal de 1909: griegos, romanos, ingleses, alemanes, franceses, en inglés | `full` | `libros/harvard-classics/` |
 | **Gutenberg literatura inglesa** (57 GB, clases P de la LCC) | Toda la literatura de Gutenberg: inglesa, estadounidense, ficción, clásica, rusa, germánica, romances traducidas | `--extra literatura` | Kiwix |
 | **Gutenberg completo** (206 GB) | Lo anterior más ciencia, historia, religión, revistas y partituras | `--extra gutenberg-full` | Kiwix |
-| **Literatura hispanoamericana del XIX** (9 obras) | Lo que le falta a Gutenberg en español | `--extra literatura` | `libros/literatura-es/` |
+| **Literatura hispanoamericana del XIX** (9 obras, 182 MB) | Lo que le falta a Gutenberg en español | `full` | `libros/literatura-es/` |
 | **Wikisource en inglés** (18 GB) | Textos fuente en inglés | `full` | Kiwix |
 | **Britannica 1911** (30 tomos) | Artículos sobre casi todos estos autores, escritos por especialistas de la época | `full` | `libros/britannica-1911/` |
 
@@ -97,4 +97,6 @@ sudo /opt/arca/setup.sh --profile full --extra literatura      # 57 GB, solo lit
 sudo /opt/arca/setup.sh --profile full --extra gutenberg-full  # 206 GB, Gutenberg entero
 ```
 
-Los dos se pueden combinar, pero no tiene sentido: `gutenberg-full` contiene lo de `literatura`.
+No actives los dos: `gutenberg-full` ya contiene todo lo de `literatura`. Las nueve obras
+hispanoamericanas de `libros/literatura-es/` vienen con el perfil `full` en ambos casos, porque
+no están en el Gutenberg inglés.

@@ -58,6 +58,10 @@ ARCA_EXTRAS="gutenberg-full"
 recurso_activo extra:gutenberg-full && ! recurso_activo extra:otro && ok "--extra activa solo ese extra" || fail "extra"
 [[ $(atributos_de_linea "core P0 medicina wikipedia/wikipedia_en_medicine_maxi") == $'core\tP0\tmedicina\twikipedia/wikipedia_en_medicine_maxi' ]] && ok "atributos_de_linea con atributos" || fail "atributos_de_linea"
 [[ $(atributos_de_linea "survive P0 agua other/zimgit-water_en") == $'survive\tP0\tagua\tother/zimgit-water_en' ]] && ok "atributos_de_linea acepta survive" || fail "atributos_de_linea survive"
+# Regresión: los parsers la llaman con IFS=tab; la función debe fijar el suyo o devuelve el default.
+IFS=$'\t' read -r rp rpr rc rr <<< "$(atributos_de_linea "extra:literatura P3 cultura gutenberg/gutenberg_en_lcc-pr")"
+[[ $rp == "extra:literatura" && $rpr == P3 && $rc == cultura && $rr == "gutenberg/gutenberg_en_lcc-pr" ]] \
+  && ok "atributos_de_linea no hereda el IFS del llamador" || fail "IFS heredado" "$rp / $rpr / $rc / $rr"
 [[ $(atributos_de_linea "wikipedia/wikipedia_es_all_mini") == $'full\tP2\tgeneral\twikipedia/wikipedia_es_all_mini' ]] && ok "atributos_de_linea sin atributos → full P2 general" || fail "atributos_de_linea default"
 ARCA_PERFIL=""; ARCA_EXTRAS=""
 perfil_cargar; [[ $ARCA_PERFIL == full ]] && ok "perfil por defecto = full" || fail "perfil por defecto" "$ARCA_PERFIL"

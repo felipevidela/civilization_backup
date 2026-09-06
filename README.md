@@ -64,7 +64,7 @@ imprimiste, el proyecto todavía no está terminado aunque Kiwix funcione.
 | `core` | ~63 GB | survive + ciencia y matemáticas de base (LibreTexts), diccionarios, material escolar, energía. |
 | `recovery` | ~255 GB | core + oficios e industria: manufactura y metrología, materiales, electricidad, telecomunicaciones, construcción, instituciones, computación (DevDocs, Stack Exchange técnicos, código fuente), OpenStax, ISO de Ubuntu, modelo de 7B, kit de IA. |
 | `full` (por defecto) | ~480 GB | recovery + legado y cultura: Khan Academy y CrashCourse, Wikisource, textos fundacionales, Britannica 1911, Harvard Classics, Biblioteca de Autores Españoles, Stack Exchange de humanidades. Deja ~400 GB libres en 1 TB. |
-| extras | opcionales | `cono-sur` (Chile y vecinos), `literatura` (57 GB: toda la literatura de Gutenberg más obras hispanoamericanas), `gutenberg-full` (206 GB), `stackoverflow-full` (107 GB), `wikipedia-fr` (50 GB), `wikipedia-en-nopic` (49 GB): `--extra nombre`. |
+| extras | opcionales | `cono-sur` (Chile y vecinos), `literatura` (57 GB: la literatura de Gutenberg sin los 206 GB del resto), `gutenberg-full` (206 GB), `stackoverflow-full` (107 GB), `wikipedia-fr` (50 GB), `wikipedia-en-nopic` (49 GB): `--extra nombre`. |
 
 `survive` ⊂ `core` ⊂ `recovery` ⊂ `full`: subir de perfil solo agrega, nunca quita. `full` sigue
 siendo el valor por defecto para no romper instalaciones existentes; si empiezas de cero y el
