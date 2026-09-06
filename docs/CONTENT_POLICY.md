@@ -35,6 +35,31 @@ sobrevive es el papel P0 (`printkit/`) y lo que la gente ya aprendió. Todo el c
 se elige sabiendo eso: si algo solo puede vivir en el disco, se acepta; si puede pasar a papel o
 a una cabeza, se prioriza que pase.
 
+## Los tres escenarios que ordenan las prioridades
+
+ARCA no supone un colapso genérico. Se prioriza contra tres escenarios concretos, por ser los
+más probables y los que más cambian qué hace falta ([docs/ESCENARIOS.md](ESCENARIOS.md)):
+
+1. **Pandemia con alta mortalidad.** Muere gente que sabe cosas; los hospitales dejan de
+   atender. Suben: control de infecciones, aislamiento, manejo seguro de cadáveres, cuidados
+   respiratorios, agua y saneamiento. Baja: casi todo lo demás durante meses.
+2. **Invierno nuclear o volcánico.** Años de frío, poca luz y cosechas perdidas. Suben:
+   protección ante lluvia radiactiva, almacenamiento de alimentos, bodega fresca, cultivos de
+   ciclo corto, hongos, invernadero, leña sin intoxicarse, conservación del calor.
+3. **Tormenta solar severa.** La red eléctrica y la electrónica conectada caen; el conocimiento
+   sigue intacto pero se vuelve inaccesible. Suben: papel, copias desconectadas, radio,
+   reparación eléctrica, y todo lo que funcione sin red.
+
+Los tres comparten el mismo núcleo: agua, comida, salud, calor y organización. Por eso el
+perfil `survive` sirve para los tres, y por eso el print-kit existe.
+
+## Protección civil sí, armas no
+
+El material de protección ante lluvia radiactiva (Nuclear War Survival Skills de Oak Ridge,
+refugios improvisados, medición de radiación) entra porque es **defensa civil**: enseña a
+proteger a una población, no a construir nada. Sigue vigente la regla de siempre: no entra
+material cuyo propósito sea armas, explosivos o agentes dañinos.
+
 ## No-goals
 
 - **No** restaurar el nivel tecnológico de 2026.

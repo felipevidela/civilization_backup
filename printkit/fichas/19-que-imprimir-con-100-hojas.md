@@ -5,18 +5,19 @@ orden y detente donde se acabe.
 
 | Orden | Qué | Hojas aprox. |
 |---|---|---|
-| 1 | Estas 20 fichas del print-kit | 20 |
+| 1 | Estas 23 fichas del print-kit | 23 |
 | 2 | `printkit/START_HERE_PAPEL.txt` | 2 |
-| 3 | Índice de la carpeta `manuales/agua/` (su LEEME) y la tabla de dosis de cloro | 3 |
-| 4 | Capítulos de diarrea, heridas e infección de *Donde no hay doctor* | 15 |
-| 5 | Tablas de tiempos de envasado del manual de conservas (USDA) | 6 |
-| 6 | Calendario de siembra de tu zona (lo llenas tú, `docs/LOCAL.md`) | 2 |
-| 7 | Capítulo de parto normal y señales de alarma (Hesperian / OMS) | 12 |
-| 8 | Mapa de tu comuna con vías de evacuación y puntos de agua | 2 |
-| 9 | `referencia/tablas-basicas.txt` (unidades, roscas, cables) | 4 |
-| 10 | Lista de contactos, direcciones y acuerdos de la familia | 1 |
-| 11 | Índice general: qué carpeta tiene qué (LEEME de `manuales/`) | 5 |
-| 12 | Lo que use tu oficio: eléctrico, mecánica, huerta | el resto |
+| 3 | La ficha del escenario que estés viviendo (21, 22 o 23), copias extra | 3 |
+| 4 | Índice de la carpeta `manuales/agua/` (su LEEME) y la tabla de dosis de cloro | 3 |
+| 5 | Capítulos de diarrea, heridas e infección de *Donde no hay doctor* | 15 |
+| 6 | Tablas de tiempos de envasado del manual de conservas (USDA) | 6 |
+| 7 | Calendario de siembra de tu zona (lo llenas tú, `docs/LOCAL.md`) | 2 |
+| 8 | Capítulo de parto normal y señales de alarma (Hesperian / OMS) | 12 |
+| 9 | Mapa de tu comuna con vías de evacuación y puntos de agua | 2 |
+| 10 | `referencia/tablas-basicas.txt` (unidades, roscas, cables) | 4 |
+| 11 | Lista de contactos, direcciones y acuerdos de la familia | 1 |
+| 12 | Índice general: qué carpeta tiene qué (LEEME de `manuales/`) | 5 |
+| 13 | Lo que use tu oficio: eléctrico, mecánica, huerta | el resto |
 
 ## Cómo imprimir para que dure
 

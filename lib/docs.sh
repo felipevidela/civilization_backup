@@ -32,7 +32,7 @@ en cualquier sistema, sin programas especiales. Empieza aquí.
                                              -> printkit/fichas/05
   3. LETRINA: a más de 30 metros de cualquier pozo o vertiente, y aguas abajo.
                                              -> printkit/fichas/03
-  4. IMPRIME printkit/ (20 fichas de una hoja). El PC dura 5 a 8 años; el papel, más.
+  4. IMPRIME printkit/ (23 fichas de una hoja). El PC dura 5 a 8 años; el papel, más.
                                              -> printkit/README.md
   5. COPIA este disco a otro y verifícalo: check.sh --scrub, backup.sh --mirror.
      Tres copias, dos medios, una fuera de la casa.   -> printkit/fichas/18
@@ -49,7 +49,7 @@ en cualquier sistema, sin programas especiales. Empieza aquí.
    ${inv%%|*} enciclopedias y colecciones (ZIM), $(cut -d'|' -f2 <<< "$inv") manuales y libros (PDF/EPUB), ${inv##*|} mapas.
 
 2. CÓMO ESTÁ ORGANIZADO (carpetas en la raíz de este disco)
-   printkit/     20 fichas de una hoja para imprimir HOY, y la portada en papel.
+   printkit/     23 fichas de una hoja para imprimir HOY, y la portada en papel.
    zim/          Wikipedia y decenas de colecciones. Se leen con Kiwix (ver punto 4).
    manuales/     PDF por dominio: medicina/ (actual, austera, referencia, historica),
                  agua/, agricultura/, manufactura/, materiales/, energia/, electricidad/,
@@ -177,7 +177,7 @@ Start here.
                                              -> printkit/fichas/05
   3. LATRINE: more than 30 m from any well or spring, and downhill from it.
                                              -> printkit/fichas/03
-  4. PRINT printkit/ (20 one-page cards). The PC lasts 5-8 years; paper lasts longer.
+  4. PRINT printkit/ (23 one-page cards). The PC lasts 5-8 years; paper lasts longer.
   5. COPY this disk and verify it: check.sh --scrub, backup.sh --mirror.
      Three copies, two media, one off-site.  -> printkit/fichas/18
   6. THE AI CAN LIE. For doses, childbirth, poisons or water: open the PDF it cites.
@@ -191,7 +191,7 @@ Start here.
    (ZIM), $(cut -d'|' -f2 <<< "$inv") manuals and books (PDF/EPUB), ${inv##*|} maps.
 
 2. HOW IT IS ORGANIZED (folders at the root of this disk)
-   printkit/     20 one-page cards to print today (Spanish), plus the paper cover page.
+   printkit/     23 one-page cards to print today (Spanish), plus the paper cover page.
    zim/          Wikipedia and dozens of collections, read with Kiwix (see 4).
    manuales/     PDFs by domain: medicina/ (actual=current, austera=low-resource,
                  referencia, historica), agua/ (water), agricultura/, manufactura/,

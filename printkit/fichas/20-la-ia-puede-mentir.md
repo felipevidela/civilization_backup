@@ -40,5 +40,5 @@ El asistente sirve para llegar rápido al manual correcto. La decisión sale del
 Traducir un manual en inglés, explicar una palabra técnica, resumir un capítulo largo, ayudarte
 a escribir una carta o un registro, recordarte en qué carpeta estaba algo.
 
-**Si el PC muere, nada de esto importa.** Por eso existen estas 20 fichas en papel: son la parte
+**Si el PC muere, nada de esto importa.** Por eso existen estas 23 fichas en papel: son la parte
 del archivo que no necesita electricidad.

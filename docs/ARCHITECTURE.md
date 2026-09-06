@@ -134,7 +134,7 @@ y `.arca/ultimo-snapshot` alimentan a `check.sh`.
 
 ## Print-kit y documentación generada (`lib/docs.sh`)
 
-`printkit/` vive en el repositorio (20 fichas Markdown de una cara, `MANIFIESTO.tsv` y
+`printkit/` vive en el repositorio (23 fichas Markdown de una cara, `MANIFIESTO.tsv` y
 `START_HERE_PAPEL.txt`) y la fase 10 lo copia tal cual al disco y a `bootstrap/`. No se descarga
 nada: es contenido propio, revisado para no inventar dosis ni protocolos; cada ficha remite al
 manual de la OMS, MSF, Hesperian o USDA que la respalda.

@@ -12,7 +12,7 @@ QUE ES
   Casi todo esta en espanol. Lo que esta en ingles se indica en cada carpeta.
 
 QUE HAY EN ESTAS HOJAS
-  20 fichas de una hoja, numeradas del 01 al 20. Cada una dice cuando usarla,
+  23 fichas de una hoja, numeradas del 01 al 23. Cada una dice cuando usarla,
   que materiales hacen falta y los pasos. Ninguna reemplaza al manual completo
   que esta en el disco: cada ficha dice cual es.
 
@@ -26,6 +26,8 @@ QUE HAY EN ESTAS HOJAS
   08 Jabon                         18 Copiar a USB y verificar
   09 Conservar comida              19 Que imprimir con 100 hojas
   10 Compost y huerta mes 1        20 La IA puede mentir: abre el PDF
+  21 Pandemia: cuidar en casa       22 Frio largo, ceniza, lluvia radiactiva
+  23 Tormenta solar: se cae la red
 
 COMO ABRIR EL DISCO (si hay un computador que funcione)
   1. Conecta el disco a un computador con Linux.

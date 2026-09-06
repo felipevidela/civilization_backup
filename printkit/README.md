@@ -1,6 +1,6 @@
 # Print-kit: lo que hay que imprimir el día 1
 
-Veinte fichas de una hoja cada una, en español llano, que se entienden sin computador. Son la
+Veintitrés fichas de una hoja cada una, en español llano, que se entienden sin computador. Son la
 parte de ARCA que sobrevive al PC: el disco dura entre 5 y 8 años encendido; el papel guardado
 seco dura décadas.
 
@@ -27,6 +27,8 @@ Recomendaciones:
   1. **Cuerpo**: fichas 04, 05, 06, 07, 14, 15.
   2. **Agua y comida**: fichas 01, 02, 03, 09, 10, 11, 16.
   3. **Casa y taller**: fichas 08, 12, 13, 17, 18, 19, 20.
+  4. **Escenarios**: fichas 21 (pandemia), 22 (frío y ceniza), 23 (tormenta solar).
+     Ver `docs/ESCENARIOS.md`.
 - Escribe **la fecha a mano** en cada taco.
 - Un juego completo guardado **fuera de la casa**, en bolsa plástica cerrada.
 
@@ -45,6 +47,6 @@ al manual de la OMS, de MSF, de Hesperian o del USDA que está en el disco.
 
 ## Archivos
 
-- `fichas/01` a `fichas/20`: las fichas.
+- `fichas/01` a `fichas/23`: las fichas.
 - `MANIFIESTO.tsv`: qué imprimir, cuántas hojas y cuántas copias.
 - `START_HERE_PAPEL.txt`: la portada del archivo, para quien encuentre el disco sin saber qué es.

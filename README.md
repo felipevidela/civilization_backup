@@ -4,7 +4,9 @@ Kit de quince años para vivir sin red. Archivo offline en español, pensado par
 pueblo chico del Cono Sur.
 
 ARCA convierte un PC con Ubuntu 24.04 en la biblioteca y el servidor de conocimiento de un grupo
-que se quedó sin internet, sin repuestos y sin hospital cerca: cómo potabilizar el agua, tratar
+que se quedó sin internet, sin repuestos y sin hospital cerca. Se prioriza contra tres
+escenarios concretos: **pandemia con alta mortalidad, invierno nuclear o volcánico, y tormenta
+solar severa** ([docs/ESCENARIOS.md](docs/ESCENARIOS.md)). Qué trae: cómo potabilizar el agua, tratar
 una herida, cultivar y guardar comida, levantar una letrina, reparar lo que hay y enseñarle un
 oficio a un adolescente. Se consulta desde cualquier teléfono o computador de la casa en
 `http://IP:8080`, sin internet.
@@ -19,7 +21,7 @@ Lo que decide qué entra, en este orden:
 **El PC se va a morir.** Un disco duro encendido a diario dura de 5 a 8 años; la fuente y la
 placa, de 8 a 15. Este archivo es una linterna de quince años, no una catedral. Lo único que
 sobrevive de verdad es el papel que imprimas y lo que la gente aprenda: por eso lo primero que
-hace ARCA es darte 20 fichas para imprimir ([`printkit/`](printkit/)), y por eso hay que
+hace ARCA es darte 23 fichas para imprimir ([`printkit/`](printkit/)), y por eso hay que
 verificar y copiar el disco todos los años.
 
 Reconstruir la civilización industrial es un subproducto, no la meta: vive en los perfiles
@@ -45,13 +47,14 @@ horas a días según el perfil y la conexión; conviene lanzarla dentro de `tmux
 ## Lo primero: imprimir
 
 ```bash
-ls /srv/respaldo/printkit/fichas/     # 20 fichas de una cara
+ls /srv/respaldo/printkit/fichas/     # 23 fichas de una cara
 cat /srv/respaldo/printkit/README.md  # cómo imprimirlas
 ```
 
-Veinte fichas de una hoja cada una: agua, herida, letrina, diarrea, parto, jabón, conserva,
-semilla, sismo, leña, gallinas, radio, y cómo copiar y verificar este archivo. Español llano,
-sin PC. Si no las imprimiste, el proyecto todavía no está terminado aunque Kiwix funcione.
+Veintitrés fichas de una hoja cada una: agua, herida, letrina, diarrea, parto, jabón, conserva,
+semilla, sismo, leña, gallinas, radio, cómo copiar y verificar este archivo, y una por cada
+escenario (pandemia, invierno largo con ceniza, tormenta solar). Español llano, sin PC. Si no las
+imprimiste, el proyecto todavía no está terminado aunque Kiwix funcione.
 
 ## Perfiles
 
@@ -95,17 +98,18 @@ Detalle completo en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Qué hay en el disco
 
 ```
-printkit/                             20 fichas para imprimir + START_HERE_PAPEL.txt
+printkit/                             23 fichas para imprimir + START_HERE_PAPEL.txt
 START_HERE.txt / _ES / _EN / .html    empieza aquí (legible sin ningún programa)
 MANIFEST.tsv                          todos los archivos con sha256, origen, licencia y prioridad
 zim/         enciclopedias y cursos (Kiwix)       manuales/   PDF por dominio, con LEEME en cada carpeta
 libros/      textos fundacionales, clásicos, OpenStax        referencia/  unidades, constantes, tablas
 mapas/       Organic Maps + Natural Earth          software/   instaladores, código fuente, IA
-docs/        TECH_TREE, RECOVERY_ROADMAP, BOM_15Y, LOCAL     bootstrap/  mínimo para reabrir el archivo
+docs/        ESCENARIOS, ROADMAP, TECH_TREE, BOM_15Y, LOCAL   bootstrap/  mínimo para reabrir el archivo
 recovery/    paridad PAR2 del núcleo crítico       personal/   tus archivos
 ```
 
-Guías: [docs/RECOVERY_ROADMAP.md](docs/RECOVERY_ROADMAP.md) (qué hacer la semana 1, el mes 1,
+Guías: [docs/ESCENARIOS.md](docs/ESCENARIOS.md) (qué abrir según lo que pase),
+[docs/RECOVERY_ROADMAP.md](docs/RECOVERY_ROADMAP.md) (qué hacer la semana 1, el mes 1,
 el año 1, el año 5, el año 15), [docs/BOM_15Y.md](docs/BOM_15Y.md) (qué comprar antes),
 [docs/LOCAL.md](docs/LOCAL.md) (qué bajar a mano de tu país),
 [docs/TECH_TREE.md](docs/TECH_TREE.md) (qué depende de qué),
