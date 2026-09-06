@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """preguntar.py — chat con el modelo local apoyado en la biblioteca de Kiwix (RAG).
 
-Para cada pregunta busca en los ZIM servidos por kiwix-serve, extrae el texto de los
-artículos más relevantes y se lo entrega al modelo junto con la pregunta. Si la
-biblioteca no tiene nada útil, el modelo responde con lo que sabe y lo avisa.
+Para cada pregunta busca en los ZIM servidos por kiwix-serve y en el índice local de PDF y
+documentos (.arca/search.db, SQLite FTS5), extrae los fragmentos más relevantes y se los
+entrega al modelo junto con la pregunta, citando cada fuente (artículo o archivo y página).
+
+Modos según la categoría de la pregunta y de las fuentes encontradas:
+  SOURCE_ONLY      medicina, agua y saneamiento, química industrial: solo responde con lo que
+                   dicen las fuentes; si no hay, dice "No encontré esta respuesta en la
+                   biblioteca local." y no improvisa.
+  SOURCE_PREFERRED el resto: usa las fuentes si las hay; si no, responde con su conocimiento
+                   avisando que no proviene de la biblioteca.
 
 Uso:
   preguntar.py                      chat interactivo
@@ -15,11 +22,13 @@ Solo usa la biblioteca estándar de Python 3. Variables de entorno opcionales:
   ARCA_MODELO      ruta al .gguf para arrancar llama-server si no está corriendo
   ARCA_LLAMA_BIN   ruta a llama-server        ARCA_CONTEXTO  tokens de contexto (4096)
   ARCA_HILOS       hilos de CPU (todos los núcleos)
+  ARCA_SEARCH_DB   índice local (/srv/respaldo/.arca/search.db)   ARCA_RESPALDO (/srv/respaldo)
 """
 import html
 import json
 import os
 import re
+import sqlite3
 import subprocess
 import sys
 import time
@@ -34,6 +43,21 @@ LLAMA = os.environ.get("ARCA_LLAMA_URL", "http://localhost:8081").rstrip("/")
 MODELO = os.environ.get("ARCA_MODELO", "")
 LLAMA_BIN = os.environ.get("ARCA_LLAMA_BIN", "llama-server")
 CONTEXTO = int(os.environ.get("ARCA_CONTEXTO", "4096"))
+RESPALDO = os.environ.get("ARCA_RESPALDO", "/srv/respaldo")
+SEARCH_DB = os.environ.get("ARCA_SEARCH_DB", os.path.join(RESPALDO, ".arca", "search.db"))
+FRASE_SIN_FUENTES = "No encontré esta respuesta en la biblioteca local."
+CATEGORIAS_SOURCE_ONLY = {"medicina", "agua", "industria", "quimica"}
+PALABRAS_MEDICINA = {"dosis", "medicamento", "medicamentos", "antibiótico", "antibiotico", "herida", "fiebre", "infección",
+                     "infeccion", "parto", "embarazo", "tratamiento", "tratar", "síntoma", "sintoma", "enfermedad",
+                     "diarrea", "vacuna", "fractura", "quemadura", "hemorragia", "bebé", "bebe", "niño", "paciente",
+                     "dose", "drug", "antibiotic", "wound", "fever", "infection", "childbirth", "pregnancy", "treatment",
+                     "symptom", "disease", "vaccine", "fracture", "burn", "bleeding", "patient"}
+PALABRAS_AGUA = {"agua", "potable", "cloro", "clorar", "cloración", "filtro", "letrina", "saneamiento", "pozo",
+                 "hervir", "desinfectar", "water", "chlorine", "chlorination", "filter", "latrine", "sanitation",
+                 "well", "boil", "disinfect", "sewage"}
+PALABRAS_QUIMICA = {"ácido", "acido", "sulfúrico", "sulfurico", "nítrico", "nitrico", "sosa", "lejía", "lejia",
+                    "cloro gas", "amoníaco", "amoniaco", "acid", "sulfuric", "nitric", "lye", "caustic", "ammonia",
+                    "reactivo", "destilar", "distill"}
 HILOS = os.environ.get("ARCA_HILOS", str(os.cpu_count() or 4))
 N_FUENTES = 4
 MAX_CARACTERES_POR_FUENTE = 3500
@@ -44,9 +68,17 @@ SISTEMA = (
     "(Wikipedia, manuales técnicos y médicos, cursos). Responde siempre en el idioma de la "
     "pregunta, de forma clara y práctica. Si se te entregan fragmentos de la biblioteca, "
     "básate en ellos y cita cada dato con su número entre corchetes, por ejemplo [2]. "
-    "Si los fragmentos no responden la pregunta, dilo con la frase 'No encontré esto en la "
-    "biblioteca' y responde con tu propio conocimiento, advirtiendo que puede contener errores. "
+    "Si los fragmentos no responden la pregunta, dilo con la frase '" + FRASE_SIN_FUENTES + "' "
+    "y responde con tu propio conocimiento, advirtiendo que puede contener errores. "
     "Nunca inventes citas."
+)
+SISTEMA_SOLO_FUENTES = (
+    "Eres arca, un asistente que funciona sin internet sobre una biblioteca local de manuales "
+    "médicos, de agua y saneamiento y de química. Esta pregunta afecta a la salud o la seguridad: "
+    "responde ÚNICAMENTE con lo que dicen los fragmentos entregados, en el idioma de la pregunta, "
+    "citando cada dato con su número entre corchetes, por ejemplo [2]. No añadas dosis, pasos ni "
+    "cantidades que no estén en los fragmentos. Si los fragmentos no responden la pregunta, "
+    "contesta exactamente: '" + FRASE_SIN_FUENTES + "' y sugiere en qué manual buscar."
 )
 
 PALABRAS_ES = {"el", "la", "los", "las", "de", "del", "que", "cómo", "como", "qué", "por", "para",
@@ -137,6 +169,37 @@ def buscar(pregunta, n):
     return resultados[:n]
 
 
+def buscar_docs(pregunta, n):
+    """Busca en el índice local (SQLite FTS5). Devuelve dicts con archivo, página, título, categoría, texto."""
+    if not os.path.exists(SEARCH_DB):
+        return []
+    terminos = [t for t in re.findall(r"[\w\-]+", pregunta) if len(t) > 2 and t.lower() not in VACIAS]
+    if not terminos:
+        return []
+    try:
+        con = sqlite3.connect(f"file:{SEARCH_DB}?mode=ro", uri=True)
+        sql = ("SELECT path, page, title, category, text FROM chunks WHERE chunks MATCH ? "
+               "ORDER BY bm25(chunks, 1.0, 0.5) LIMIT ?")
+        filas = con.execute(sql, [" ".join('"' + t.replace('"', '') + '"' for t in terminos), n]).fetchall()
+        if not filas and len(terminos) > 1:
+            filas = con.execute(sql, [" OR ".join('"' + t.replace('"', '') + '"' for t in terminos), n]).fetchall()
+        con.close()
+    except sqlite3.Error:
+        return []
+    return [{"tipo": "doc", "archivo": f[0], "pagina": f[1], "titulo": f[2], "categoria": f[3], "texto": f[4]} for f in filas]
+
+
+def modo_de(pregunta, fuentes):
+    """SOURCE_ONLY si la pregunta o la mayoría de las fuentes son de salud/agua/química; si no SOURCE_PREFERRED."""
+    palabras = set(re.findall(r"[\wáéíóúñü]+", pregunta.lower()))
+    if palabras & (PALABRAS_MEDICINA | PALABRAS_AGUA | PALABRAS_QUIMICA):
+        return "SOURCE_ONLY"
+    cats = [f.get("categoria", "") for f in fuentes if f.get("categoria")]
+    if cats and sum(1 for c in cats if c in CATEGORIAS_SOURCE_ONLY) * 2 > len(cats):
+        return "SOURCE_ONLY"
+    return "SOURCE_PREFERRED"
+
+
 def texto_de(resultado):
     ruta = resultado["ruta"][len("/content/"):]
     libro, _, camino = ruta.partition("/")
@@ -148,15 +211,22 @@ def texto_de(resultado):
     return texto[:MAX_CARACTERES_POR_FUENTE]
 
 
+def etiqueta_de(f):
+    if f.get("tipo") == "doc":
+        pag = f" — página {f['pagina']}" if f.get("pagina") else ""
+        return f"{f['titulo']} ({f['archivo']}{pag})"
+    return f"{f['titulo']} ({f.get('libro', 'Kiwix')})"
+
+
 def contexto_de(fuentes):
     bloques, total = [], 0
     for i, f in enumerate(fuentes, 1):
-        texto = texto_de(f)
+        texto = f["texto"][:MAX_CARACTERES_POR_FUENTE] if f.get("tipo") == "doc" else texto_de(f)
         if total + len(texto) > MAX_CARACTERES_CONTEXTO:
             texto = texto[: max(0, MAX_CARACTERES_CONTEXTO - total)]
         if not texto:
             continue
-        bloques.append(f"[{i}] {f['titulo']} ({f['libro']})\n{texto}")
+        bloques.append(f"[{i}] {etiqueta_de(f)}\n{texto}")
         total += len(texto)
         if total >= MAX_CARACTERES_CONTEXTO:
             break
@@ -215,23 +285,40 @@ def preguntar_modelo(mensajes):
 
 
 def responder(pregunta, historial, usar_biblioteca, n_fuentes):
-    fuentes = buscar(pregunta, n_fuentes) if usar_biblioteca else []
+    fuentes = []
+    if usar_biblioteca:
+        # Mitad documentos locales (PDF, manuales), mitad Kiwix; los documentos van primero.
+        docs = buscar_docs(pregunta, max(2, n_fuentes // 2 + 1))
+        kiwix = buscar(pregunta, n_fuentes)
+        fuentes = (docs + kiwix)[:n_fuentes + 1]
+    modo = modo_de(pregunta, fuentes) if usar_biblioteca else "SOURCE_PREFERRED"
     contexto = contexto_de(fuentes) if fuentes else ""
+    if modo == "SOURCE_ONLY" and not contexto:
+        print(f"\narca> {FRASE_SIN_FUENTES} (modo solo-fuentes: {'medicina, agua o química'}). "
+              "Busca en manuales/medicina/, manuales/agua/ o en Wikipedia médica (Kiwix).")
+        historial.append({"role": "user", "content": pregunta})
+        historial.append({"role": "assistant", "content": FRASE_SIN_FUENTES})
+        return FRASE_SIN_FUENTES
     if contexto:
-        usuario = (f"Fragmentos de la biblioteca:\n\n{contexto}\n\n---\nPregunta: {pregunta}")
+        usuario = f"Fragmentos de la biblioteca:\n\n{contexto}\n\n---\nPregunta: {pregunta}"
     else:
         usuario = pregunta if not usar_biblioteca else (
             f"La biblioteca no devolvió resultados para esta pregunta. Responde con tu conocimiento "
             f"y avisa que no está en la biblioteca.\n\nPregunta: {pregunta}")
-    mensajes = [{"role": "system", "content": SISTEMA}] + historial[-6:] + [{"role": "user", "content": usuario}]
-    print("\narca> ", end="", flush=True)
+    sistema = SISTEMA_SOLO_FUENTES if modo == "SOURCE_ONLY" else SISTEMA
+    mensajes = [{"role": "system", "content": sistema}] + historial[-6:] + [{"role": "user", "content": usuario}]
+    print(f"\narca [{modo}]> ", end="", flush=True)
     texto = preguntar_modelo(mensajes)
     historial.append({"role": "user", "content": pregunta})
     historial.append({"role": "assistant", "content": texto})
     if fuentes:
         print("\nFuentes en la biblioteca:")
         for i, f in enumerate(fuentes, 1):
-            print(f"  [{i}] {f['titulo']} — {KIWIX}{f['ruta']}")
+            if f.get("tipo") == "doc":
+                pag = f" — página {f['pagina']}" if f.get("pagina") else ""
+                print(f"  [{i}] {f['archivo']}{pag}")
+            else:
+                print(f"  [{i}] {f['titulo']} — {KIWIX}{f['ruta']}")
     return texto
 
 

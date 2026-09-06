@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# arca-search — busca en el índice local de PDF, libros y documentos (SQLite FTS5).
+# Uso: arca-search "filtro lento de arena" [--n 10] [--category agua] [--json]
+set -euo pipefail
+ARCA_DIR="${ARCA_DIR:-/opt/arca}"
+[[ -f "$ARCA_DIR/lib/arca_index.py" ]] || ARCA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec python3 "$ARCA_DIR/lib/arca_index.py" search "$@"

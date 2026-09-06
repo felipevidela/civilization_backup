@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# arca-index — crea o actualiza el índice de búsqueda local. Uso: sudo arca-index [--ocr] | arca-index stats
+set -euo pipefail
+ARCA_DIR="${ARCA_DIR:-/opt/arca}"
+[[ -f "$ARCA_DIR/lib/arca_index.py" ]] || ARCA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ ${1:-} == stats ]]; then exec python3 "$ARCA_DIR/lib/arca_index.py" stats; fi
+exec python3 "$ARCA_DIR/lib/arca_index.py" build "$@"
