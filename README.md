@@ -12,15 +12,17 @@ reanuda solo si se corta, se actualiza cada mes y se copia a un disco externo co
 
 - Ubuntu 24.04 LTS recién instalado (Debian 12 funciona con aviso, sin probar).
 - Un usuario normal con `sudo`. 8 GB de RAM bastan (el modelo de lenguaje usa ~5 GB).
-- Disco de 500 GB con dos particiones:
-  - `/` de 40 GB (ext4), sistema.
-  - `/srv/respaldo` con el resto (~420 GB, ext4 o exFAT), datos. **Debe estar montada** ahí:
-    el instalador se niega a llenar la partición raíz.
-- Internet. La instalación completa descarga ~340 GB; con una conexión de 100 Mbit/s son
-  unas 10 horas de descarga pura, más las horas que tarde el torrent en encontrar pares.
+- Dos discos, o uno grande con dos particiones:
+  - `/` (ext4), sistema: un SSD de 256 GB va perfecto, o una partición de 40 GB.
+  - `/srv/respaldo` (ext4 o exFAT), datos: 1 TB para el contenido por defecto; con 420 GB
+    hay que recortar `packs.conf` (ver más abajo). **Debe estar montada** ahí: el instalador
+    se niega a llenar la partición raíz.
+- Internet. La instalación completa descarga ~615 GB; con una conexión de 100 Mbit/s son
+  unas 15 horas de descarga pura, más lo que tarde el torrent en encontrar pares.
 
-Particionado recomendado en el instalador de Ubuntu: "Algo más" → partición 1: 40 GB, ext4, `/`;
-partición 2: resto, ext4, punto de montaje `/srv/respaldo`.
+Particionado recomendado en el instalador de Ubuntu ("Instalación manual"): SSD → EFI de
+512 MB y el resto ext4 en `/`; HDD de 1 TB → una partición ext4 en `/srv/respaldo`. Con un solo
+disco de 500 GB: 40 GB ext4 en `/` y el resto ext4 en `/srv/respaldo`.
 
 ## Instalación
 
@@ -65,21 +67,25 @@ Tamaños reales de septiembre de 2026 (los ZIM crecen con cada versión):
 
 | Contenido | Tamaño |
 |---|---|
-| Wikipedia inglés sin imágenes (`wikipedia_en_all_nopic`) | 49 GB |
+| Wikipedia inglés con imágenes (`wikipedia_en_all_maxi`) | 115 GB |
 | Wikipedia español con imágenes (`wikipedia_es_all_maxi`) | 38 GB |
 | Khan Academy (videos de matemáticas y ciencia, versión 2023) | 168 GB |
 | Wikipedia médica, mdwiki, guías zimgit (medicina, agua, comida, post-desastre) | 5 GB |
 | LibreTexts (ingeniería, química, biología, física, matemáticas, medicina) | 7 GB |
+| Project Gutenberg inglés (`gutenberg_en_all`) | 206 GB |
 | Wiktionary EN/ES, Wikibooks EN/ES, Wikisource EN/ES, Gutenberg ES | 35 GB |
 | iFixit, Appropedia, PhET | 4 GB |
 | Stack Exchange (electrónica, bricolaje, física, matemáticas, química) | 15 GB |
 | Manuales PDF (Hesperian, MSF, OMS, Gray's, Merck, CD3WD, Machinery's, NASA, FM, FAO, MIT OCW) | 2 GB |
 | Mapas de Chile, Argentina, Perú y Bolivia | 1.6 GB |
 | Software: .deb, AppImage, APK, ISO de Ubuntu 24.04, llama.cpp, modelo Qwen2.5-7B Q4_K_M | 13 GB |
-| **Total aproximado** | **~340 GB** |
+| **Total aproximado** | **~615 GB** |
 
-Con la partición de 420 GB quedan unos 75 GB libres. La fase 0 lo comprueba con tamaños reales
-y, si no cabe, dice exactamente qué líneas de `packs.conf` comentar.
+En un disco de 1 TB quedan unos 265 GB libres, margen necesario porque al actualizar cada ZIM
+nuevo se descarga entero antes de borrar el viejo (Khan Academy solo ya pesa 168 GB). La fase 0
+lo comprueba con tamaños reales y, si no cabe, dice exactamente qué líneas de `packs.conf`
+comentar. Para un disco de 420 GB: comenta `gutenberg_en_all` y cambia `wikipedia_en_all_maxi`
+por `wikipedia_en_all_nopic` (49 GB); queda en ~340 GB.
 
 ## Cómo editar `packs.conf`, `manuals.conf` y `software.conf`
 
@@ -89,8 +95,8 @@ líneas que empiezan con `#` están desactivadas. Tras editar, ejecuta `sudo /op
 - **`packs.conf`**: un ZIM por línea, `carpeta/prefijo` tal como aparece en
   <https://download.kiwix.org/zim/>. Ejemplo: `wikipedia/wikipedia_fr_all_maxi`. El script elige
   solo la fecha más reciente. Nombres que no existen en el servidor se anotan como error.
-  Al final del archivo hay opciones grandes desactivadas (Wikipedia inglés con imágenes, Gutenberg
-  inglés, Stack Overflow).
+  Al final del archivo hay opciones desactivadas (Stack Overflow, Wikipedia inglés sin imágenes,
+  Wikipedia francés).
 - **`manuals.conf`**: `destino_relativo | url | descripción`. Admite URL directa, `ia://ITEM`
   (archive.org), `ocw://slug` (MIT OpenCourseWare) y `mirror://URL?max=N` (espejo HTML con wget).
   Si el destino termina en `/` es una carpeta.
@@ -148,7 +154,8 @@ sudo /opt/arca/backup.sh /ruta --yes  # sin confirmación
 
 Copia `/srv/respaldo/` completo con `rsync --delete` (lo borrado en origen se borra en destino),
 muestra antes qué va a hacer y cuánto espacio necesita, y al terminar escribe `BACKUP-INFO.txt`
-en el destino y hace `sync`. Un disco externo de 500 GB formateado en ext4 o exFAT es suficiente.
+en el destino y hace `sync`. Con el contenido por defecto hace falta un disco externo de 1 TB
+(ext4 o exFAT).
 
 ## Restaurar en un PC nuevo sin internet
 
