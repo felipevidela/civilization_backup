@@ -1,0 +1,64 @@
+================================================================================
+  ARCA - ARCHIVO DE CONOCIMIENTO SIN INTERNET
+  Version en papel. Si encontraste el disco y no sabes que es, lee esto primero.
+================================================================================
+
+QUE ES
+  Un disco duro con una biblioteca que funciona sin internet: como potabilizar
+  agua, tratar heridas y enfermedades, cultivar y guardar comida, construir,
+  reparar, generar electricidad, y ensenar oficios. Esta pensado para que una
+  familia o un pueblo chico viva los proximos quince anos sin red.
+
+  Casi todo esta en espanol. Lo que esta en ingles se indica en cada carpeta.
+
+QUE HAY EN ESTAS HOJAS
+  20 fichas de una hoja, numeradas del 01 al 20. Cada una dice cuando usarla,
+  que materiales hacen falta y los pasos. Ninguna reemplaza al manual completo
+  que esta en el disco: cada ficha dice cual es.
+
+  01 Agua: hervir, clorar          11 Guardar semilla
+  02 Filtro lento de arena         12 Lena y monoxido de carbono
+  03 Letrina y pozo                13 Sismo y tsunami
+  04 Diarrea y rehidratacion       14 Botiquin
+  05 Herida y hemorragia           15 Dientes
+  06 Parto de emergencia           16 Gallinas
+  07 Fiebre                        17 Radio y senales
+  08 Jabon                         18 Copiar a USB y verificar
+  09 Conservar comida              19 Que imprimir con 100 hojas
+  10 Compost y huerta mes 1        20 La IA puede mentir: abre el PDF
+
+COMO ABRIR EL DISCO (si hay un computador que funcione)
+  1. Conecta el disco a un computador con Linux.
+  2. Montalo:   sudo mkdir -p /srv/respaldo
+                lsblk                       (busca el disco, por ejemplo sdb1)
+                sudo mount /dev/sdb1 /srv/respaldo
+  3. Abre el archivo START_HERE.txt que esta en la raiz del disco.
+  4. Para ver las enciclopedias hace falta el programa Kiwix, que esta incluido:
+       tar xzf /srv/respaldo/bootstrap/kiwix-tools_linux-*.tar.gz -C /tmp
+       /tmp/kiwix-tools_*/kiwix-serve --port 8080 /srv/respaldo/zim/*.zim
+     y luego, en el navegador del mismo computador: http://localhost:8080
+  5. Los PDF, los TXT y las tablas se abren con cualquier programa; no necesitan
+     Kiwix.
+
+  Si el computador tiene ARCA instalado, escribe:  sudo /opt/arca/check.sh
+
+DONDE ESTA CADA COSA EN EL DISCO
+  printkit/    estas fichas          manuales/    PDF por tema, con un LEEME
+  zim/         enciclopedias         libros/      libros y textos completos
+  referencia/  unidades y tablas     mapas/       mapas
+  software/    programas e instaladores          docs/  guias generales
+  bootstrap/   lo minimo para volver a abrir todo esto
+  MANIFEST.tsv lista de todos los archivos con su huella (sha256)
+
+SI ALGO NO FUNCIONA
+  - El disco no se abre: prueba en otro computador antes de darlo por muerto.
+  - Kiwix no arranca: los PDF de manuales/ igual se abren solos.
+  - No hay computador: estas hojas siguen sirviendo. Esa es la idea.
+
+LO QUE HAY QUE HACER CADA ANO
+  Verificar el disco, sacar una copia nueva a otro disco, y volver a imprimir lo
+  que se haya perdido o mojado. Un disco duro dura entre 5 y 8 anos encendido.
+  Este papel dura mas que el disco: cuidalo, y copialo a mano si hace falta.
+
+  Tres copias, dos medios distintos, una guardada fuera de la casa.
+================================================================================
