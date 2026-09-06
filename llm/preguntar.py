@@ -13,7 +13,8 @@ Uso:
 Solo usa la biblioteca estándar de Python 3. Variables de entorno opcionales:
   ARCA_KIWIX_URL   (http://localhost:8080)   ARCA_LLAMA_URL (http://localhost:8081)
   ARCA_MODELO      ruta al .gguf para arrancar llama-server si no está corriendo
-  ARCA_LLAMA_BIN   ruta a llama-server        ARCA_CONTEXTO  tokens de contexto (8192)
+  ARCA_LLAMA_BIN   ruta a llama-server        ARCA_CONTEXTO  tokens de contexto (4096)
+  ARCA_HILOS       hilos de CPU (todos los núcleos)
 """
 import html
 import json
@@ -32,10 +33,11 @@ KIWIX = os.environ.get("ARCA_KIWIX_URL", "http://localhost:8080").rstrip("/")
 LLAMA = os.environ.get("ARCA_LLAMA_URL", "http://localhost:8081").rstrip("/")
 MODELO = os.environ.get("ARCA_MODELO", "")
 LLAMA_BIN = os.environ.get("ARCA_LLAMA_BIN", "llama-server")
-CONTEXTO = int(os.environ.get("ARCA_CONTEXTO", "8192"))
+CONTEXTO = int(os.environ.get("ARCA_CONTEXTO", "4096"))
+HILOS = os.environ.get("ARCA_HILOS", str(os.cpu_count() or 4))
 N_FUENTES = 4
-MAX_CARACTERES_POR_FUENTE = 5000
-MAX_CARACTERES_CONTEXTO = 16000
+MAX_CARACTERES_POR_FUENTE = 3500
+MAX_CARACTERES_CONTEXTO = 9000
 
 SISTEMA = (
     "Eres arca, un asistente que funciona sin internet sobre una biblioteca local "
@@ -176,7 +178,7 @@ def arrancar_llama():
         sys.exit(f"llama-server no responde en {LLAMA} y no hay modelo en ARCA_MODELO={MODELO!r}.")
     puerto = urllib.parse.urlparse(LLAMA).port or 8081
     print(f"Arrancando llama-server con {os.path.basename(MODELO)} (tarda ~30 s)...", file=sys.stderr)
-    proc = subprocess.Popen([LLAMA_BIN, "-m", MODELO, "-c", str(CONTEXTO), "--host", "127.0.0.1",
+    proc = subprocess.Popen([LLAMA_BIN, "-m", MODELO, "-c", str(CONTEXTO), "-t", HILOS, "--host", "127.0.0.1",
                              "--port", str(puerto)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(120):
         time.sleep(2)

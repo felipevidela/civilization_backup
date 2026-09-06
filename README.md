@@ -86,7 +86,7 @@ Tamaños reales de septiembre de 2026 (los ZIM crecen con cada versión):
 | OpenStax: libros de texto universitarios en español (11) e inglés (73) en PDF | 5 GB |
 | IA desde cero: 5 libros, 24 artículos fundacionales, código de referencia, ruedas de PyTorch | 1 GB |
 | Mapas de Chile, Argentina, Perú y Bolivia | 1.6 GB |
-| Software: .deb, AppImage, APK, ISO de Ubuntu 24.04, llama.cpp, modelo Qwen2.5-7B Q4_K_M | 13 GB |
+| Software: .deb, AppImage, APK, ISO de Ubuntu 24.04, llama.cpp, modelos Qwen2.5 7B y 3B | 15 GB |
 | **Total aproximado** | **~800 GB** |
 
 En un disco de 1 TB quedan unos 80 GB libres (la fase 1 baja al 1 % los bloques reservados de ext4,
@@ -201,10 +201,16 @@ fechas de cada archivo, para que estén disponibles aunque solo tengas el disco.
 ```
 
 Por cada pregunta busca en los ZIM con el buscador de Kiwix (en español y en inglés), extrae
-el texto de los artículos más relevantes, se lo entrega al modelo Qwen2.5-7B junto con la
-pregunta y muestra la respuesta con las fuentes y sus enlaces. Dentro del chat: `/solo`
-desactiva la búsqueda, `/fuentes N` cambia cuántos artículos usa. Cada respuesta tarda entre
-30 segundos y 2 minutos en CPU. Solo consulta los ZIM; los PDF de `manuales/` no están indexados.
+el texto de los artículos más relevantes, se lo entrega al modelo junto con la pregunta y
+muestra la respuesta con las fuentes y sus enlaces. Dentro del chat: `/solo` desactiva la
+búsqueda, `/fuentes N` cambia cuántos artículos usa. Solo consulta los ZIM; los PDF de
+`manuales/` no están indexados.
+
+Se incluyen dos modelos: Qwen2.5-7B (mejor calidad, 4.7 GB) y Qwen2.5-3B (`--rapido`, 1.8 GB).
+En un i3 de 4 núcleos con 8 GB de RAM el 7B tarda 2 o 3 minutos por respuesta con búsqueda y
+conviene no tener abiertos Calibre ni muchas pestañas del navegador; el 3B responde en menos de
+un minuto y basta para la mayoría de preguntas. llama.cpp se compila optimizado para el
+procesador del PC donde se instala; para usarlo en otro, recompila desde `software/llm/llama.cpp`.
 
 ## Cómo crear una IA desde cero
 
@@ -254,8 +260,8 @@ Algunos recursos no tienen descarga automática estable; quedan documentados y c
   `library.xml` está corrupta, `sudo /opt/arca/setup.sh --only 7` la regenera.
 - **No se ve desde otros dispositivos**: comprueba que están en la misma red, que el puerto 8080
   está abierto (`sudo ufw status`) y que la IP es la que muestra `check.sh`.
-- **El modelo de lenguaje no arranca**: necesita ~5 GB de RAM libres. Cierra Calibre y el
-  navegador, o elige un modelo más pequeño en `software.conf` (por ejemplo un Q4_K_M de 3B).
+- **El modelo de lenguaje no arranca o va lentísimo**: el 7B necesita ~5.5 GB de RAM libres.
+  Cierra Calibre y el navegador, o usa `preguntar.sh --rapido` / `chat.sh --rapido` (modelo de 3B).
 - **"Ya hay un proceso en ejecución"**: otro `setup.sh`/`update.sh` está corriendo (mira
   `ps aux | grep arca`). Si es un lock huérfano, el script lo detecta y lo reemplaza solo.
 - **Errores pendientes**: `cat /srv/respaldo/.arca/failed.txt`; se reintentan con `update.sh`.

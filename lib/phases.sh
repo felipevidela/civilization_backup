@@ -142,6 +142,12 @@ estimar_pendiente() {
     bytes=${m%%$'\t'*}; [[ $bytes =~ ^[0-9]+$ ]] || bytes=4700000000
     [[ -s "$dir_soft/llm/modelos/$LLM_MODEL_FILE" ]] && estado=instalado || estado=pendiente
     printf 'software\t%s\t%s\t%s\n' "$LLM_MODEL_FILE" "$bytes" "$estado"
+    if [[ -n ${LLM_RAPIDO_FILE:-} ]]; then
+      m=$(hf_modelo_info "${LLM_RAPIDO_REPO:-$LLM_MODEL_REPO}" "$LLM_RAPIDO_FILE" 2>/dev/null || true)
+      bytes=${m%%$'\t'*}; [[ $bytes =~ ^[0-9]+$ ]] || bytes=2000000000
+      [[ -s "$dir_soft/llm/modelos/$LLM_RAPIDO_FILE" ]] && estado=instalado || estado=pendiente
+      printf 'software\t%s\t%s\t%s\n' "$LLM_RAPIDO_FILE" "$bytes" "$estado"
+    fi
     [[ -x "$dir_soft/llm/llama.cpp/build/bin/llama-cli" ]] && estado=instalado || estado=pendiente
     printf 'software\tllama.cpp (fuentes+binarios)\t800000000\t%s\n' "$estado"
   }
@@ -463,10 +469,29 @@ iso_ultima_linea() {
   _curl "$UBUNTU_ISO_URL_BASE/SHA256SUMS" 2>/dev/null | grep "$UBUNTU_ISO_PATRON" | sort -k2 -V | tail -1
 }
 
-# Info del modelo en Hugging Face: "bytes<TAB>sha256".
+# Info de un modelo en Hugging Face: "bytes<TAB>sha256". Argumentos: repo archivo.
 hf_modelo_info() {
-  _curl "https://huggingface.co/api/models/$LLM_MODEL_REPO/tree/main" \
-    | jq -r --arg f "$LLM_MODEL_FILE" '.[] | select(.path==$f) | [.size, (.lfs.oid // "")] | @tsv'
+  local repo=${1:-$LLM_MODEL_REPO} archivo=${2:-$LLM_MODEL_FILE}
+  _curl "https://huggingface.co/api/models/$repo/tree/main" \
+    | jq -r --arg f "$archivo" '.[] | select(.path==$f) | [.size, (.lfs.oid // "")] | @tsv'
+}
+
+# Descarga y verifica un GGUF de Hugging Face en $3. Argumentos: repo archivo dir.
+_soft_llm_modelo() {
+  local repo=$1 archivo=$2 dir=$3 info bytes sha modelo="$3/$2"
+  [[ -s $modelo ]] && return 0
+  info=$(hf_modelo_info "$repo" "$archivo") || true
+  IFS=$'\t' read -r bytes sha <<< "$info"
+  [[ $bytes =~ ^[0-9]+$ ]] || { failed_add "software:modelo:$archivo" "no se encontró en $repo"; return 0; }
+  space_check $(( bytes + bytes / 20 )) "$RESPALDO" || { failed_add "software:modelo:$archivo" "sin espacio"; return 0; }
+  log_info "Modelo $archivo ($(human "$bytes")) desde Hugging Face..."
+  if fetch_file "https://huggingface.co/$repo/resolve/main/$archivo" "$modelo" \
+     && { [[ -z $sha ]] || fetch_verify_sha256 "$modelo" "$sha"; }; then
+    json_set "$SOFTWARE_JSON" "modelo:$archivo" archivo "$archivo" repo "$repo" sha256 "${sha:-sin hash}" fecha "$(date -Is)"
+    failed_del "software:modelo:$archivo"
+  else
+    rm -f "$modelo"; failed_add "software:modelo:$archivo" "descarga o sha256 fallido"
+  fi
 }
 
 _soft_deb() {
@@ -588,7 +613,7 @@ _soft_llm() {
     log_info "llama.cpp $ref: clonando y compilando para CPU (tarda 10-30 min)..."
     rm -rf "$src"
     if log_cmd git clone --depth 1 --branch "$ref" "$LLAMACPP_REPO" "$src" \
-       && log_cmd cmake -S "$src" -B "$src/build" -DCMAKE_BUILD_TYPE=Release -DLLAMA_CURL=OFF -DGGML_NATIVE=OFF \
+       && log_cmd cmake -S "$src" -B "$src/build" -DCMAKE_BUILD_TYPE=Release -DLLAMA_CURL=OFF \
        && log_cmd cmake --build "$src/build" --config Release -j "$(nproc)" --target llama-cli llama-server; then
       json_set "$SOFTWARE_JSON" llamacpp version "$ref" fecha "$(date -Is)"; failed_del "software:llama.cpp"
       log_ok "llama.cpp compilado en $src/build/bin/"
@@ -596,32 +621,23 @@ _soft_llm() {
       failed_add "software:llama.cpp" "clonado o compilación fallida (ver log)"
     fi
   fi
-  local info bytes sha modelo="$dir/modelos/$LLM_MODEL_FILE"
-  if [[ ! -s $modelo ]]; then
-    info=$(hf_modelo_info) || true
-    IFS=$'\t' read -r bytes sha <<< "$info"
-    [[ $bytes =~ ^[0-9]+$ ]] || { failed_add "software:modelo-llm" "no se encontró $LLM_MODEL_FILE en $LLM_MODEL_REPO"; return 0; }
-    space_check $(( bytes + bytes / 20 )) "$RESPALDO" || { failed_add "software:modelo-llm" "sin espacio"; return 0; }
-    log_info "Modelo $LLM_MODEL_FILE ($(human "$bytes")) desde Hugging Face..."
-    if fetch_file "https://huggingface.co/$LLM_MODEL_REPO/resolve/main/$LLM_MODEL_FILE" "$modelo" \
-       && { [[ -z $sha ]] || fetch_verify_sha256 "$modelo" "$sha"; }; then
-      json_set "$SOFTWARE_JSON" modelo_llm archivo "$LLM_MODEL_FILE" repo "$LLM_MODEL_REPO" sha256 "${sha:-sin hash}" fecha "$(date -Is)"
-      failed_del "software:modelo-llm"
-    else
-      rm -f "$modelo"; failed_add "software:modelo-llm" "descarga o sha256 fallido"
-    fi
-  fi
+  _soft_llm_modelo "$LLM_MODEL_REPO" "$LLM_MODEL_FILE" "$dir/modelos"
+  [[ -n ${LLM_RAPIDO_FILE:-} ]] && _soft_llm_modelo "${LLM_RAPIDO_REPO:-$LLM_MODEL_REPO}" "$LLM_RAPIDO_FILE" "$dir/modelos"
   cat > "$dir/chat.sh" <<CHAT
 #!/usr/bin/env bash
-# Chat local con el modelo (CPU). Uso: ./chat.sh  |  ./chat.sh --server (API en http://localhost:8081)
+# Chat local con el modelo (CPU).
+# Uso: ./chat.sh [--rapido]            chat en la terminal (--rapido usa el modelo de 3B)
+#      ./chat.sh [--rapido] --server   API y web en http://IP:8081
 set -euo pipefail
 DIR="\$(cd "\$(dirname "\$0")" && pwd)"
 MODELO="\$DIR/modelos/$LLM_MODEL_FILE"
+if [[ "\${1:-}" == "--rapido" ]]; then MODELO="\$DIR/modelos/${LLM_RAPIDO_FILE:-$LLM_MODEL_FILE}"; shift; fi
 [[ -s "\$MODELO" ]] || { echo "No está el modelo: \$MODELO"; exit 1; }
+HILOS="\$(nproc)"
 if [[ "\${1:-}" == "--server" ]]; then
-  exec "\$DIR/llama.cpp/build/bin/llama-server" -m "\$MODELO" -c 4096 --host 0.0.0.0 --port 8081
+  exec "\$DIR/llama.cpp/build/bin/llama-server" -m "\$MODELO" -c ${LLM_CONTEXTO:-4096} -t "\$HILOS" --host 0.0.0.0 --port 8081
 fi
-exec "\$DIR/llama.cpp/build/bin/llama-cli" -m "\$MODELO" -c 4096 -cnv --color -p "Eres un asistente útil. Responde en el idioma del usuario."
+exec "\$DIR/llama.cpp/build/bin/llama-cli" -m "\$MODELO" -c ${LLM_CONTEXTO:-4096} -t "\$HILOS" -cnv --color -p "Eres un asistente útil. Responde en el idioma del usuario."
 CHAT
   chmod +x "$dir/chat.sh"
   if [[ ${LLM_PREGUNTAR:-1} == 1 ]]; then
@@ -629,13 +645,17 @@ CHAT
     cat > "$dir/preguntar.sh" <<PREG
 #!/usr/bin/env bash
 # Chat con la biblioteca: busca en Kiwix (puerto $PUERTO) y responde con el modelo local.
-# Uso: ./preguntar.sh            (interactivo)   |   ./preguntar.sh "¿cómo se hace jabón?"
+# Uso: ./preguntar.sh [--rapido]                   interactivo (--rapido usa el modelo de 3B)
+#      ./preguntar.sh [--rapido] "¿cómo se hace jabón?"
 set -euo pipefail
 DIR="\$(cd "\$(dirname "\$0")" && pwd)"
+MODELO="\$DIR/modelos/$LLM_MODEL_FILE"
+if [[ "\${1:-}" == "--rapido" ]]; then MODELO="\$DIR/modelos/${LLM_RAPIDO_FILE:-$LLM_MODEL_FILE}"; shift; fi
 export ARCA_KIWIX_URL="\${ARCA_KIWIX_URL:-http://localhost:$PUERTO}"
 export ARCA_LLAMA_URL="\${ARCA_LLAMA_URL:-http://localhost:8081}"
-export ARCA_MODELO="\$DIR/modelos/$LLM_MODEL_FILE"
+export ARCA_MODELO="\$MODELO"
 export ARCA_LLAMA_BIN="\$DIR/llama.cpp/build/bin/llama-server"
+export ARCA_CONTEXTO="\${ARCA_CONTEXTO:-${LLM_CONTEXTO:-4096}}"
 exec python3 "\$DIR/preguntar.py" "\$@"
 PREG
     chmod +x "$dir/preguntar.sh"
