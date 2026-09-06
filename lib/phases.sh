@@ -185,6 +185,8 @@ fase_0() {
   esac
 
   mkdir -p "$ARCA_STATE_DIR" "$ARCA_TMP"
+  software_load
+  MARGEN_PCT=${MARGEN_ESPACIO_PCT:-$MARGEN_PCT}
   kiwix_cache_clear
   log_info "Calculando el espacio necesario (consulta tamaños reales al servidor, puede tardar un par de minutos)..."
   local tabla; tabla=$(estimar_pendiente)
@@ -220,6 +222,23 @@ fase_1() {
     mkdir -p "$RESPALDO/$d"
   done
   mkdir -p "$ARCA_DIR/logs"
+  # En ext4 el 5 % del disco queda reservado para root por defecto; en un disco de datos
+  # de 1 TB son ~45 GB perdidos. Se baja al 1 %.
+  local dev fs
+  dev=$(findmnt -no SOURCE --target "$RESPALDO" 2>/dev/null || true)
+  fs=$(findmnt -no FSTYPE --target "$RESPALDO" 2>/dev/null || true)
+  if [[ $fs == ext4 && $dev == /dev/* ]] && command -v tune2fs > /dev/null; then
+    local reservado
+    reservado=$(tune2fs -l "$dev" 2>/dev/null | awk -F: '/Reserved block count/ {gsub(/ /,"",$2); print $2}')
+    local total; total=$(tune2fs -l "$dev" 2>/dev/null | awk -F: '/^Block count/ {gsub(/ /,"",$2); print $2}')
+    if [[ $reservado =~ ^[0-9]+$ && $total =~ ^[0-9]+$ ]] && (( reservado * 100 / total > 1 )); then
+      if tune2fs -m 1 "$dev" > /dev/null 2>&1; then
+        log_ok "Bloques reservados de ext4 en $dev bajados del $(( reservado * 100 / total )) % al 1 %."
+      else
+        log_warn "No se pudo ajustar tune2fs -m 1 en $dev; se continúa."
+      fi
+    fi
+  fi
   if [[ ! -f "$RESPALDO/libros/propios/LEEME.txt" ]]; then
     cat > "$RESPALDO/libros/propios/LEEME.txt" <<'TXT'
 Carpeta para tus propios libros (EPUB/PDF sin DRM).
@@ -267,7 +286,18 @@ _zim_job() {
   local bytes sha
   bytes=$(kiwix_size "$carpeta" "$nombre" || kiwix_listed_size "$carpeta" "$nombre" || echo 0)
   if ! space_check $(( bytes + bytes / 20 )) "$RESPALDO"; then
-    echo "FAIL sin espacio para $nombre ($(human "$bytes"))" > "$resultado"; return 0
+    # Opción ZIM_BORRAR_VIEJO_SI_NO_CABE (software.conf): si la versión nueva no cabe junto
+    # a la vieja, borra la vieja primero. El ZIM queda ausente mientras dura la descarga.
+    local viejo; viejo=$(zim_json_get "$prefijo" archivo || true)
+    if [[ ${ZIM_BORRAR_VIEJO_SI_NO_CABE:-0} == 1 && -n $viejo && -s "$dir/$viejo" && $viejo != "$nombre" ]]; then
+      log_warn "No cabe $nombre junto a $viejo; se borra la versión anterior antes de descargar (ZIM_BORRAR_VIEJO_SI_NO_CABE=1)."
+      rm -f "$dir/$viejo"
+      if ! space_check $(( bytes + bytes / 20 )) "$RESPALDO"; then
+        echo "FAIL sin espacio para $nombre ($(human "$bytes")) ni tras borrar $viejo" > "$resultado"; return 0
+      fi
+    else
+      echo "FAIL sin espacio para $nombre ($(human "$bytes"))" > "$resultado"; return 0
+    fi
   fi
   log_info "Descargando $nombre ($(human "$bytes"))..."
   if sha=$(kiwix_download "$carpeta" "$nombre" "$dir"); then
@@ -280,6 +310,7 @@ _zim_job() {
 fase_3() {
   log_titulo "Fase 3: ZIM de Kiwix"
   mkdir -p "$ZIM_DIR" "$ARCA_TMP/zim"
+  software_load
   zim_json_init
   kiwix_cache_clear
   local carpeta prefijo nombre pendientes=() ya=0
@@ -315,6 +346,9 @@ fase_3() {
       log_ok "$nombre verificado ($(human "$bytes"))."
     else
       failed_add "zim:$carpeta/$prefijo" "$(cut -d' ' -f2- "$res" 2>/dev/null || echo "$sha")"
+      # Si la versión registrada ya no está en disco (borrada para hacer sitio), se quita del inventario.
+      local reg; reg=$(zim_json_get "$prefijo" archivo || true)
+      [[ -n $reg && ! -s "$ZIM_DIR/$reg" ]] && zim_json_del "$prefijo"
     fi
     rm -f "$res"
   done

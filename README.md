@@ -40,7 +40,7 @@ curl -fsSL https://raw.githubusercontent.com/felipevidela/civilization_backup/ma
 
 | Fase | Qué hace |
 |---|---|
-| 0 | Verifica distro, sudo, red y montaje; calcula el espacio real consultando los servidores (+15 %) |
+| 0 | Verifica distro, sudo, red y montaje; calcula el espacio real consultando los servidores (+5 % de margen, `MARGEN_ESPACIO_PCT`) |
 | 1 | Crea `/srv/respaldo/{zim,manuales,libros,mapas,software,personal,.arca}` |
 | 2 | `apt install` kiwix-tools, aria2, calibre, keepassxc, gocryptfs, flatpak, rsync…; Flatpak Kiwix y Organic Maps |
 | 3 | Descarga los ZIM de `packs.conf` (torrent con aria2, 3 a la vez, fallback HTTP, sha256) |
@@ -70,24 +70,33 @@ Tamaños reales de septiembre de 2026 (los ZIM crecen con cada versión):
 | Wikipedia inglés con imágenes (`wikipedia_en_all_maxi`) | 115 GB |
 | Wikipedia español con imágenes (`wikipedia_es_all_maxi`) | 38 GB |
 | Khan Academy (videos de matemáticas y ciencia, versión 2023) | 168 GB |
+| CrashCourse (videos de ciencia, historia, biología, química) | 21 GB |
 | Wikipedia médica, mdwiki, guías zimgit (medicina, agua, comida, post-desastre) | 5 GB |
 | LibreTexts (ingeniería, química, biología, física, matemáticas, medicina) | 7 GB |
+| Wikiversity EN/ES, Wikiquote EN/ES, Vikidia (niños) ES/EN, EcuRed (enciclopedia ES) | 7 GB |
+| Wikispecies, World Factbook, Energypedia, TruePrepper, Appropedia, WikiCiv y otros | 7 GB |
 | Project Gutenberg inglés (`gutenberg_en_all`) | 206 GB |
 | Wiktionary EN/ES, Wikibooks EN/ES, Wikisource EN/ES, Gutenberg ES | 35 GB |
 | iFixit, Appropedia, PhET | 4 GB |
 | Stack Exchange (electrónica, bricolaje, física, matemáticas, química) | 15 GB |
 | Stack Overflow completo (`stackoverflow.com_en_all`) | 107 GB |
-| Manuales PDF (Hesperian, MSF, OMS, Gray's, Merck, CD3WD, Machinery's, NASA, FM, FAO, MIT OCW) | 2 GB |
+| 50 Stack Exchange más (biología, jardinería, mecánica, ingeniería, historia, filosofía, Linux…) y DevDocs | 25 GB |
+| Manuales PDF (Hesperian, MSF EN/ES, OMS, Gray's, Merck, CD3WD, Machinery's, NASA, FM, FAO, MIT OCW) | 2 GB |
+| Britannica 1911 (30 tomos), Harvard Classics (51 vol.), Biblioteca de Autores Españoles (55 tomos) | 9 GB |
+| OpenStax: libros de texto universitarios en español (11) e inglés (73) en PDF | 5 GB |
 | Mapas de Chile, Argentina, Perú y Bolivia | 1.6 GB |
 | Software: .deb, AppImage, APK, ISO de Ubuntu 24.04, llama.cpp, modelo Qwen2.5-7B Q4_K_M | 13 GB |
-| **Total aproximado** | **~725 GB** |
+| **Total aproximado** | **~800 GB** |
 
-En un disco de 1 TB quedan unos 160 GB libres. Al actualizar, cada ZIM nuevo se descarga entero
-antes de borrar el viejo, así que una versión nueva de Khan Academy (168 GB) no cabría hasta
-liberar espacio; `update.sh` lo avisa y sigue con el resto. La fase 0 comprueba el espacio con
-tamaños reales y, si no cabe, dice exactamente qué líneas de `packs.conf` comentar. Para un disco
-de 420 GB: comenta `gutenberg_en_all`, `stackoverflow.com_en_all` y `khanacademy_en_all` o
-cambia `wikipedia_en_all_maxi` por `wikipedia_en_all_nopic` (49 GB).
+En un disco de 1 TB quedan unos 80 GB libres (la fase 1 baja al 1 % los bloques reservados de ext4,
+que por defecto se comen 45 GB). Al actualizar, la versión nueva de un ZIM se
+descarga entera antes de borrar la vieja; si no caben las dos (Wikipedia inglés, Khan Academy,
+Gutenberg, Stack Overflow), `ZIM_BORRAR_VIEJO_SI_NO_CABE=1` en `software.conf` hace que se borre
+la vieja primero y ese ZIM falte mientras dura la descarga. Con `0` se conserva la vieja y se
+anota el error. La fase 0 comprueba el espacio con tamaños reales y, si no cabe, dice exactamente
+qué líneas de `packs.conf` comentar. Para un disco de 420 GB: comenta `gutenberg_en_all`,
+`stackoverflow.com_en_all`, `khanacademy_en_all` y `crashcourse_en_all`, y cambia
+`wikipedia_en_all_maxi` por `wikipedia_en_all_nopic` (49 GB).
 
 ## Cómo editar `packs.conf`, `manuals.conf` y `software.conf`
 
@@ -99,8 +108,9 @@ líneas que empiezan con `#` están desactivadas. Tras editar, ejecuta `sudo /op
   solo la fecha más reciente. Nombres que no existen en el servidor se anotan como error.
   Al final del archivo hay opciones desactivadas (Wikipedia inglés sin imágenes, Wikipedia francés).
 - **`manuals.conf`**: `destino_relativo | url | descripción`. Admite URL directa, `ia://ITEM`
-  (archive.org), `ocw://slug` (MIT OpenCourseWare) y `mirror://URL?max=N` (espejo HTML con wget).
-  Si el destino termina en `/` es una carpeta.
+  (archive.org), `ocw://slug` (MIT OpenCourseWare), `openstax://en|es` (catálogo OpenStax en PDF)
+  y `mirror://URL?max=N` (espejo HTML con wget). Si el destino termina en `/` es una carpeta.
+  Para añadir un libro de archive.org basta una línea `libros/carpeta/ | ia://identificador | título`.
 - **`software.conf`**: `clave=valor`. Aquí se cambia el modelo de lenguaje (`LLM_MODEL_REPO`,
   `LLM_MODEL_FILE`, cualquier GGUF de Hugging Face), se desactiva la ISO o el LLM (`=0`) y se
   eligen los países de los mapas (`MAPAS_PAISES`).
@@ -199,9 +209,11 @@ Algunos recursos no tienen descarga automática estable; quedan documentados y c
 - **Standard Ebooks**: la descarga en lote requiere ser miembro del Patrons Circle. Con esa
   cuenta, baja los ZIP desde <https://standardebooks.org/bulk-downloads> a
   `/srv/respaldo/libros/standard-ebooks/`. Sin ella, la literatura está en los ZIM de Gutenberg.
-- **LibreTexts y OpenStax**: LibreTexts se instala como ZIM oficial de Kiwix (más completo que
-  un espejo HTML). OpenStax no existe en Kiwix; sus libros se pueden bajar en PDF desde
-  <https://openstax.org/subjects> a `manuales/`.
+- **Enciclopedia Espasa** (Enciclopedia universal ilustrada europeo-americana, 1908-1930): hay
+  tomos sueltos en archive.org con nombres irregulares (unos 4 GB por tomo escaneado). Si quieres
+  alguno, añade su identificador como línea `ia://` en `manuals.conf`.
+- **Hesperian en español**: ver arriba. La literatura clásica en español está cubierta por
+  Wikisource ES, Gutenberg ES y la Biblioteca de Autores Españoles (55 tomos).
 
 ## Solución de problemas
 

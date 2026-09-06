@@ -7,6 +7,7 @@
 #   ia://ITEM/archivo.pdf              un archivo concreto del ítem
 #   ocw://slug-del-curso               ZIP completo del curso en MIT OpenCourseWare
 #   mirror://https://sitio/ruta/?max=N  espejo HTML con wget, límite N GB
+#   openstax://en | openstax://es      todos los libros de texto OpenStax en PDF (inglés o español)
 #
 # Requiere lib/log.sh y lib/space.sh cargados.
 
@@ -132,6 +133,18 @@ fetch_ocw_zip() {
   _curl "https://ocw.mit.edu/courses/$slug/download" | grep -o 'https://ocw.mit.edu/courses/[^"]*\.zip' | head -1
 }
 
+# Libros de texto OpenStax con PDF: imprime "título<TAB>url" por línea. Idioma en|es.
+fetch_openstax_list() {
+  local idioma=${1:-en} url
+  if [[ $idioma == es ]]; then
+    url="https://openstax.org/apps/cms/api/v2/pages/?type=books.Book&locale=es&limit=300&fields=title,book_state,high_resolution_pdf_url,pdf_url"
+    _curl "$url" | jq -r '.items[] | select(.book_state=="live") | (.high_resolution_pdf_url // .pdf_url // "") as $u | select($u != "") | [.title, $u] | @tsv'
+  else
+    url="https://openstax.org/apps/cms/api/books"
+    _curl "$url" | jq -r '.books[] | select(.book_state=="live") | (.high_resolution_pdf_url // .pdf_url // "") as $u | select($u != "") | [.title, $u] | @tsv'
+  fi | sort -u -t$'\t' -k2,2
+}
+
 # Tamaño estimado de un recurso de manuals.conf (según esquema).
 fetch_resource_size() {
   local url=$1 total=0 n
@@ -147,6 +160,9 @@ fetch_resource_size() {
     mirror://*)
       local max=${url##*max=}; [[ $max == "$url" ]] && max=1
       echo $(( max * 1024 * 1024 * 1024 )) ;;
+    openstax://*)
+      while IFS=$'\t' read -r _ u; do n=$(fetch_size "$u" 2>/dev/null || echo 0); total=$((total + n)); done < <(fetch_openstax_list "${url#openstax://}")
+      echo "$total" ;;
     *)
       fetch_size "$url" ;;
   esac
@@ -197,6 +213,15 @@ fetch_resource() {
       local u=${url#mirror://} max=1
       if [[ $u == *\?max=* ]]; then max=${u##*max=}; u=${u%\?max=*}; fi
       if fetch_mirror "$u" "$destino" "$max"; then total=$(space_used_bytes "$destino"); else rc=1; fi ;;
+    openstax://*)
+      local titulo u dest n=0
+      mkdir -p "$destino"
+      while IFS=$'\t' read -r titulo u; do
+        [[ -n $u ]] || continue
+        dest="${destino%/}/$(basename "${u%%\?*}")"
+        if fetch_file "$u" "$dest"; then total=$((total + $(stat -c %s "$dest"))); n=$((n + 1)); else rc=1; log_warn "OpenStax: falló $titulo"; fi
+      done < <(fetch_openstax_list "${url#openstax://}")
+      (( n > 0 )) || rc=1 ;;
     *)
       local dest=$destino
       [[ $destino == */ ]] && dest="$destino$(basename "${url%%\?*}")"
