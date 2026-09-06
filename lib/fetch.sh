@@ -9,6 +9,7 @@
 #   mirror://https://sitio/ruta/?max=N  espejo HTML con wget, límite N GB
 #   openstax://en | openstax://es      todos los libros de texto OpenStax en PDF (inglés o español)
 #   github://usuario/repo/REGEX        asset de la última release de GitHub que cumpla la REGEX
+#   kernel://longterm | kernel://stable  último núcleo Linux de esa serie (kernel.org)
 #
 # Requiere lib/log.sh y lib/space.sh cargados.
 
@@ -35,6 +36,10 @@ fetch_size() {
     cab=$(curl -sL --connect-timeout 20 --max-time 60 -A "$ARCA_UA" -r 0-0 -o /dev/null -D - "$url" 2>/dev/null \
           | tr -d '\r' | awk 'BEGIN{RS=""} {b=$0} END{print b}')
     n=$(grep -i '^content-range:' <<< "$cab" | tail -1 | sed 's#.*/##')
+  fi
+  if [[ -z ${n:-} || $n == 0 ]]; then
+    # Servidores sin Content-Length ni Range (texto en chunked): se descarga entero si es pequeño.
+    n=$(curl -sL --connect-timeout 20 --max-time 60 --max-filesize 20000000 -A "$ARCA_UA" -o /dev/null -w '%{size_download}' "$url" 2>/dev/null)
   fi
   if [[ ${n:-} =~ ^[0-9]+$ ]] && (( n > 0 )); then
     echo "$n"
@@ -146,6 +151,12 @@ fetch_openstax_list() {
   fi | sort -u -t$'\t' -k2,2
 }
 
+# URL del tarball del núcleo Linux más reciente de una serie (longterm|stable).
+fetch_kernel_url() {
+  local serie=${1:-longterm}
+  _curl "https://www.kernel.org/releases.json" | jq -r --arg m "$serie" '[.releases[] | select(.moniker==$m)][0].source // empty'
+}
+
 # Tamaño estimado de un recurso de manuals.conf (según esquema).
 fetch_resource_size() {
   local url=$1 total=0 n
@@ -168,6 +179,9 @@ fetch_resource_size() {
       local rest=${url#github://} repo re
       repo=$(cut -d/ -f1-2 <<< "$rest"); re=${rest#"$repo"/}
       fetch_github_asset "$repo" "$re" | cut -f3 ;;
+    kernel://*)
+      local k; k=$(fetch_kernel_url "${url#kernel://}") || return 1
+      [[ -n $k ]] && fetch_size "$k" ;;
     *)
       fetch_size "$url" ;;
   esac
@@ -226,6 +240,12 @@ fetch_resource() {
       [[ -n $u ]] || { log_error "No hay asset que cumpla '$re' en la última release de $repo"; echo 0; return 1; }
       dest=$destino; [[ $destino == */ ]] && dest="$destino$nombre"
       if fetch_file "$u" "$dest"; then total=$(stat -c %s "$dest"); else rc=1; fi ;;
+    kernel://*)
+      local k dest
+      k=$(fetch_kernel_url "${url#kernel://}") || true
+      [[ -n $k ]] || { log_error "No se pudo leer kernel.org/releases.json"; echo 0; return 1; }
+      dest=$destino; [[ $destino == */ ]] && dest="$destino$(basename "$k")"
+      if fetch_file "$k" "$dest"; then total=$(stat -c %s "$dest"); find "$(dirname "$dest")" -maxdepth 1 -name 'linux-*.tar.xz' ! -name "$(basename "$k")" -delete; else rc=1; fi ;;
     openstax://*)
       local titulo u dest n=0
       mkdir -p "$destino"

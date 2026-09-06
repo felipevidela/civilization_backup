@@ -328,3 +328,78 @@ TXT
   (cd "$b" && find . -type f ! -name 'SHA256SUMS*' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.tmp && mv SHA256SUMS.tmp SHA256SUMS)
   chown_respaldo "$b"
 }
+
+# Copia los LEEME por dominio (docs/leeme/*.md) a sus carpetas y genera referencia/tablas-basicas.txt.
+leemes_instalar() {
+  local f nombre destino
+  for f in "$ARCA_DIR"/docs/leeme/*.md; do
+    nombre=$(basename "$f" .md)
+    case $nombre in
+      medicina-historica) destino="$RESPALDO/manuales/medicina/historica" ;;
+      referencia) destino="$RESPALDO/referencia" ;;
+      mapas) destino="$RESPALDO/mapas" ;;
+      codigo) destino="$RESPALDO/software/source" ;;
+      *) destino="$RESPALDO/manuales/$nombre" ;;
+    esac
+    [[ -d $destino ]] || continue
+    cp "$f" "$destino/LEEME.md"
+  done
+  [[ -d "$RESPALDO/libros/fundacionales" ]] && cp "$ARCA_DIR/docs/fundacionales.md" "$RESPALDO/libros/fundacionales/LEEME.md"
+  [[ -d "$RESPALDO/referencia" ]] && referencia_tablas > "$RESPALDO/referencia/tablas-basicas.txt"
+  # SOURCES.tsv: versión, origen, licencia y sha256 de cada tarball de código fuente (desde el registro del manifiesto).
+  if [[ -d "$RESPALDO/software/source" && -s $MANIFEST_REG ]]; then
+    { printf 'path\tversion\tsource\tlicense\tsha256\tsize\n'
+      awk -F'\t' 'NR>1 && $1 ~ /^software\/source\// {print $1"\t"$5"\t"$4"\t"$8"\t"$3"\t"$2}' "$MANIFEST_REG" | sort; } > "$RESPALDO/software/source/SOURCES.tsv"
+  fi
+  return 0
+}
+
+# Tablas de referencia derivadas de definiciones exactas y fórmulas normalizadas (sin medidas).
+referencia_tablas() {
+  cat <<'TXT'
+TABLAS BÁSICAS DE REFERENCIA (generadas por ARCA a partir de definiciones y fórmulas oficiales)
+
+PREFIJOS SI
+  quetta Q 1e30   ronna R 1e27   yotta Y 1e24   zetta Z 1e21   exa E 1e18   peta P 1e15
+  tera T 1e12     giga G 1e9     mega M 1e6     kilo k 1e3     hecto h 1e2  deca da 1e1
+  deci d 1e-1     centi c 1e-2   mili m 1e-3    micro µ 1e-6   nano n 1e-9  pico p 1e-12
+  femto f 1e-15   atto a 1e-18   zepto z 1e-21  yocto y 1e-24  ronto r 1e-27 quecto q 1e-30
+
+UNIDADES BASE SI (definiciones de 2019, ver bipm-si-brochure-9-en.pdf)
+  segundo s (frecuencia del cesio-133: 9 192 631 770 Hz)   metro m (c = 299 792 458 m/s)
+  kilogramo kg (h = 6.626 070 15e-34 J s)   amperio A (e = 1.602 176 634e-19 C)
+  kelvin K (k = 1.380 649e-23 J/K)   mol (N_A = 6.022 140 76e23 1/mol)   candela cd (K_cd = 683 lm/W)
+
+CONVERSIONES EXACTAS (por definición)
+  1 pulgada = 25.4 mm          1 pie = 0.3048 m           1 yarda = 0.9144 m       1 milla = 1609.344 m
+  1 libra (lb) = 0.453 592 37 kg   1 onza = 28.349 523 125 g   1 galón US = 3.785 411 784 L   1 galón UK = 4.546 09 L
+  1 atm = 101 325 Pa           1 bar = 100 000 Pa          1 psi = 6 894.757 293 168 Pa (exacto: 4.448 221 615 260 5 N / (0.0254 m)^2)
+  1 caloría (termoquímica) = 4.184 J   1 BTU (IT) = 1 055.055 852 62 J   1 kWh = 3 600 000 J   1 hp (mecánico) = 745.699 871 582 27 W
+  °C = K - 273.15              °F = °C × 9/5 + 32          1 acre = 4 046.856 422 4 m²   1 hectárea = 10 000 m²
+
+CALIBRES DE ALAMBRE AWG (ASTM B258): diámetro d_mm = 0.127 × 92^((36 − n)/39); sección = π d²/4
+  AWG   diám (mm)   sección (mm²)
+TXT
+  local n
+  for n in 0000 000 00 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 22 24 26 28 30; do
+    awk -v n="$n" 'BEGIN{ m=n; if(n=="0000")m=-3; else if(n=="000")m=-2; else if(n=="00")m=-1; d=0.127*92^((36-m)/39); printf "  %-5s %9.3f   %9.3f\n", n, d, 3.14159265*d*d/4 }'
+  done
+  cat <<'TXT'
+
+ROSCAS MÉTRICAS ISO, PASO GRUESO (ISO 261): designación M d × paso (mm)
+  M1 0.25  M1.2 0.25  M1.6 0.35  M2 0.4   M2.5 0.45  M3 0.5   M4 0.7   M5 0.8   M6 1.0   M8 1.25
+  M10 1.5  M12 1.75   M14 2.0   M16 2.0  M20 2.5   M24 3.0  M30 3.5  M36 4.0  M42 4.5  M48 5.0
+  Broca para machuelo (aprox.): d − paso   (ej. M8×1.25 → broca de 6.8 mm; M10×1.5 → 8.5 mm)
+  Ángulo del filete: 60°. Altura básica del filete H = 0.866 × paso.
+
+VELOCIDAD DE CORTE (orientativa; ver Machinery Repairman y Machinery's Handbook)
+  rpm = (velocidad de corte m/min × 1000) / (π × diámetro mm)
+  Herramienta de acero rápido: acero suave 25-30 m/min · fundición 20 m/min · aluminio 90+ m/min · latón 60 m/min
+
+AGUA
+  Densidad ≈ 1000 kg/m³ (4 °C) · calor específico 4.18 kJ/(kg·K) · ebullición 100 °C a 101.325 kPa
+  Presión hidrostática: 10 m de columna de agua ≈ 98 kPa ≈ 1 bar ≈ 14.2 psi
+  Cloración de emergencia (OMS, ver manuales/agua/): objetivo 0.5 mg/L de cloro libre residual tras 30 min
+
+TXT
+}

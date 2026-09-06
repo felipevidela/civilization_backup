@@ -314,7 +314,7 @@ fase_0() {
 fase_1() {
   log_titulo "Fase 1: estructura de carpetas"
   local d
-  for d in zim manuales libros libros/propios mapas software personal .arca .arca/tmp; do
+  for d in zim manuales libros libros/propios mapas software personal referencia docs bootstrap recovery .arca .arca/tmp; do
     mkdir -p "$RESPALDO/$d"
   done
   mkdir -p "$ARCA_DIR/logs"
@@ -492,9 +492,9 @@ fase_4() {
       failed_add "$clave" "no se pudo descargar $u"
     fi
   done < <(manuals_read)
-  # Índices comentados que acompañan a las colecciones.
-  [[ -d "$RESPALDO/libros/fundacionales" ]] && cp "$ARCA_DIR/docs/fundacionales.md" "$RESPALDO/libros/fundacionales/LEEME.md"
-  chown_respaldo "$RESPALDO/manuales" "$RESPALDO/libros" "$MANUALS_JSON"
+  # Índices comentados (LEEME) por carpeta y tablas de referencia.
+  leemes_instalar
+  chown_respaldo "$RESPALDO/manuales" "$RESPALDO/libros" "$RESPALDO/referencia" "$MANUALS_JSON"
 }
 
 # ---------------------------------------------------------------- fase 5
@@ -512,7 +512,7 @@ mapas_regiones() {
   local pais filtro=""
   for pais in ${MAPAS_PAISES:-}; do filtro+="${filtro:+ or }(.id == \"$pais\" or (.id | startswith(\"${pais}_\")))"; done
   [[ -n $filtro ]] || return 0
-  mapas_countries_json | jq -r "[.. | objects | select(.id? and .s?) | select($filtro)] | .[] | [.id, .s] | @tsv"
+  mapas_countries_json | jq -r "[.. | objects | select(.id? and .s?) | select($filtro or .id == \"World\" or .id == \"WorldCoasts\")] | .[] | [.id, .s] | @tsv"
 }
 
 mapas_servidor() {
@@ -749,6 +749,8 @@ export ARCA_LLAMA_URL="\${ARCA_LLAMA_URL:-http://localhost:8081}"
 export ARCA_MODELO="\$MODELO"
 export ARCA_LLAMA_BIN="\$DIR/llama.cpp/build/bin/llama-server"
 export ARCA_CONTEXTO="\${ARCA_CONTEXTO:-${LLM_CONTEXTO:-4096}}"
+export ARCA_RESPALDO="$RESPALDO"
+export ARCA_SEARCH_DB="\${ARCA_SEARCH_DB:-$ARCA_STATE_DIR/search.db}"
 exec python3 "\$DIR/preguntar.py" "\$@"
 PREG
     chmod +x "$dir/preguntar.sh"
@@ -911,9 +913,22 @@ fase_10() {
   log_info "Actualizando el manifiesto (hashea solo archivos nuevos o cambiados; puede tardar unos minutos)..."
   manifest_rebuild
   manifest_generate
+  leemes_instalar
   log_ok "MANIFEST.tsv: $(awk 'END{print NR-1}' "$MANIFEST_OUT") entradas."
   bootstrap_generar
   log_ok "bootstrap/ regenerado ($(human "$(space_used_bytes "$RESPALDO/bootstrap")"))."
+  if command -v pdftotext > /dev/null; then
+    log_info "Indexando PDF y documentos para la búsqueda local (arca-search)..."
+    if python3 "$ARCA_DIR/lib/arca_index.py" build --root "$RESPALDO" --db "$ARCA_STATE_DIR/search.db" 2>> "$ARCA_LOG_FILE"; then
+      log_ok "Índice de búsqueda: $(python3 "$ARCA_DIR/lib/arca_index.py" stats --db "$ARCA_STATE_DIR/search.db" | head -1)"
+    else
+      log_warn "El índice de búsqueda terminó con errores (ver log)."
+    fi
+  else
+    log_warn "pdftotext no está instalado; sin índice de búsqueda local (sudo apt install poppler-utils)."
+  fi
+  ln -sf "$ARCA_DIR/bin/arca-search" /usr/local/bin/arca-search 2>/dev/null || true
+  ln -sf "$ARCA_DIR/bin/arca-index" /usr/local/bin/arca-index 2>/dev/null || true
   if command -v par2 > /dev/null; then
     "$ARCA_DIR/repair.sh" --create || log_warn "La paridad PAR2 terminó con avisos (ver log)."
   else
@@ -942,4 +957,75 @@ fase_11() {
   echo "  Log completo:  $ARCA_LOG_FILE"
   echo
   echo "  Recuerda hacer una copia al disco externo: sudo $ARCA_DIR/backup.sh /media/$USUARIO/DISCO"
+}
+
+
+# ---------------------------------------------------------------- poda de recursos fuera del perfil
+
+# Lista lo instalado que no pertenece al perfil ni a los extras activos: "tipo<TAB>ruta<TAB>bytes<TAB>motivo".
+listar_fuera_de_perfil() {
+  local p pr cat carpeta prefijo archivo d u desc lic f
+  # ZIM registrados en zim.json
+  if [[ -s $ZIM_JSON ]]; then
+    while IFS=$'\t' read -r prefijo archivo; do
+      [[ -s "$ZIM_DIR/$archivo" ]] || continue
+      local linea; linea=$(packs_read "$PACKS_CONF" | awk -F'\t' -v x="$prefijo" '$5==x {print; exit}')
+      if [[ -z $linea ]]; then
+        printf 'zim\tzim/%s\t%s\tya no está en packs.conf\n' "$archivo" "$(stat -c %s "$ZIM_DIR/$archivo")"
+      else
+        p=${linea%%$'\t'*}
+        recurso_activo "$p" || printf 'zim\tzim/%s\t%s\tperfil %s\n' "$archivo" "$(stat -c %s "$ZIM_DIR/$archivo")" "$p"
+      fi
+    done < <(jq -r 'to_entries[] | "\(.key)\t\(.value.archivo)"' "$ZIM_JSON")
+  fi
+  # ZIM en disco sin registro
+  for f in "$ZIM_DIR"/*.zim; do
+    [[ -f $f ]] || continue
+    jq -e --arg a "$(basename "$f")" 'to_entries[] | select(.value.archivo==$a)' "$ZIM_JSON" > /dev/null 2>&1 \
+      || printf 'zim\tzim/%s\t%s\tsin registro en zim.json\n' "$(basename "$f")" "$(stat -c %s "$f")"
+  done
+  # Manuales y libros
+  while IFS=$'\t' read -r p pr cat d u desc lic; do
+    recurso_activo "$p" && continue
+    if [[ $d == */ ]]; then
+      [[ -n $(find "$RESPALDO/$d" -type f -print -quit 2>/dev/null) ]] && printf 'manual\t%s\t%s\tperfil %s\n' "$d" "$(space_used_bytes "$RESPALDO/$d")" "$p"
+    else
+      [[ -s "$RESPALDO/$d" ]] && printf 'manual\t%s\t%s\tperfil %s\n' "$d" "$(stat -c %s "$RESPALDO/$d")" "$p"
+    fi
+  done < <(manuals_read)
+  # Software por perfil
+  software_load
+  soft_activo iso || for f in "$RESPALDO"/software/iso/*.iso; do [[ -f $f ]] && printf 'software\tsoftware/iso/%s\t%s\tperfil recovery\n' "$(basename "$f")" "$(stat -c %s "$f")"; done
+  soft_activo llm7b || { f="$RESPALDO/software/llm/modelos/$LLM_MODEL_FILE"; [[ -f $f ]] && printf 'software\tsoftware/llm/modelos/%s\t%s\tperfil recovery\n' "$LLM_MODEL_FILE" "$(stat -c %s "$f")"; }
+  return 0
+}
+
+# Borra lo listado por listar_fuera_de_perfil (tras confirmación, salvo --yes). Devuelve 0.
+podar_fuera_de_perfil() {
+  local si=${1:-0} lista total=0 t ruta bytes motivo
+  lista=$(listar_fuera_de_perfil)
+  if [[ -z $lista ]]; then log_ok "No hay recursos instalados fuera del perfil $ARCA_PERFIL."; return 0; fi
+  echo "Recursos instalados que NO pertenecen al perfil $ARCA_PERFIL${ARCA_EXTRAS:+ ni a los extras ($ARCA_EXTRAS)}:"
+  while IFS=$'\t' read -r t ruta bytes motivo; do
+    printf '  %-8s %-70s %10s  %s\n' "$t" "${ruta:0:70}" "$(human "$bytes")" "$motivo"
+    total=$((total + bytes))
+  done <<< "$lista"
+  echo "Se recuperarían $(human "$total")."
+  if (( ! si )); then
+    read -rp "¿Borrar estos $(grep -c . <<< "$lista") recursos? [s/N] " r
+    [[ $r =~ ^[sS]$ ]] || { echo "No se borra nada."; return 0; }
+  fi
+  local hubo_zim=0
+  while IFS=$'\t' read -r t ruta bytes motivo; do
+    rm -rf "${RESPALDO:?}/$ruta"
+    manifest_del "$ruta"
+    if [[ $t == zim ]]; then
+      hubo_zim=1
+      local pref; pref=$(jq -r --arg a "$(basename "$ruta")" 'to_entries[] | select(.value.archivo==$a) | .key' "$ZIM_JSON" 2>/dev/null | head -1)
+      [[ -n $pref ]] && zim_json_del "$pref"
+    fi
+    log_info "Borrado: $ruta ($(human "$bytes"))"
+  done <<< "$lista"
+  (( hubo_zim )) && fase_7
+  log_ok "Poda completa: $(human "$total") liberados."
 }
