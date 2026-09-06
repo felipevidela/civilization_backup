@@ -178,7 +178,9 @@ def buscar_docs(pregunta, n):
         return []
     try:
         con = sqlite3.connect(f"file:{SEARCH_DB}?mode=ro", uri=True)
+        # Se excluyen guías de navegación (LEEME, START_HERE, docs/): el contexto debe venir de manuales y libros.
         sql = ("SELECT path, page, title, category, text FROM chunks WHERE chunks MATCH ? "
+               "AND category != 'documentacion' AND path NOT LIKE '%LEEME%' "
                "ORDER BY bm25(chunks, 1.0, 0.5) LIMIT ?")
         filas = con.execute(sql, [" ".join('"' + t.replace('"', '') + '"' for t in terminos), n]).fetchall()
         if not filas and len(terminos) > 1:

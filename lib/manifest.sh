@@ -179,7 +179,7 @@ manifest_generate() {
     local f rel
     while IFS= read -r -d '' f; do
       rel=${f#"$RESPALDO"/}
-      case $rel in .arca/*|*.part|*.aria2|*.tmp|MANIFEST.tsv|recovery/*|bootstrap/*|lost+found/*|software/llm/llama.cpp/*|software/ia/codigo/*|software/arca.git/*|software/source/*) continue ;; esac
+      case $rel in .arca/*|*.part|*.aria2|*.tmp|*.log|MANIFEST.tsv|recovery/*|bootstrap/*|lost+found/*|software/llm/llama.cpp/*|software/ia/codigo/*|software/arca.git/*|software/source/*) continue ;; esac
       awk -F'\t' -v p="$rel" 'NR>1 && $1==p {f=1} END{exit !f}' "$MANIFEST_REG" && continue
       printf '%s\t%s\tunknown\tunknown\tunknown\tunknown\tunknown\tunknown\tunknown\tunknown\tunknown\tunregistered\n' "$rel" "$(stat -c %s "$f")"
     done < <(find "$RESPALDO" -type f -print0 2>/dev/null)

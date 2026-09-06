@@ -909,12 +909,15 @@ fase_10() {
   log_titulo "Fase 10: documentación, manifiesto, bootstrap y paridad"
   readme_generar
   docs_generar
+  # El chat con la biblioteca se actualiza con el repo aunque la fase 6 no vuelva a correr.
+  [[ -f "$RESPALDO/software/llm/preguntar.py" ]] && cp "$ARCA_DIR/llm/preguntar.py" "$RESPALDO/software/llm/preguntar.py"
   log_ok "README.txt, START_HERE (ES/EN/HTML) y docs/ generados."
   log_info "Actualizando el manifiesto (hashea solo archivos nuevos o cambiados; puede tardar unos minutos)..."
   manifest_rebuild
-  manifest_generate
   leemes_instalar
   sources_licenses_generar
+  manifest_add docs/SOURCES_AND_LICENSES.md "ARCA (generado)" "$(date +%Y-%m-%d)" es MIT P0 documentacion core 2>/dev/null || true
+  manifest_generate
   log_ok "MANIFEST.tsv: $(awk 'END{print NR-1}' "$MANIFEST_OUT") entradas."
   bootstrap_generar
   log_ok "bootstrap/ regenerado ($(human "$(space_used_bytes "$RESPALDO/bootstrap")"))."

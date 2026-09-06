@@ -52,9 +52,10 @@ if [[ $MODO == scrub || $MODO == scrub-quick ]]; then
     if [[ $real != "$size" && $size != unknown ]]; then
       mismatch=$((mismatch + 1)); printf 'SIZE-MISMATCH\t%s\tesperado %s, real %s\n' "$rel" "$size" "$real" >> "$informe"; continue
     fi
-    if [[ $sha == unknown || $MODO == scrub-quick ]]; then
-      unverified=$((unverified + 1)); [[ $sha == unknown ]] && printf 'UNVERIFIED\t%s\tsin sha256 registrado\n' "$rel" >> "$informe"; continue
+    if [[ $sha == unknown ]]; then
+      unverified=$((unverified + 1)); printf 'UNVERIFIED\t%s\tsin sha256 registrado\n' "$rel" >> "$informe"; continue
     fi
+    if [[ $MODO == scrub-quick ]]; then ok=$((ok + 1)); continue; fi
     calc=$(sha256sum "$abs" | awk '{print $1}')
     hechos=$((hechos + real))
     if [[ $calc == "$sha" ]]; then ok=$((ok + 1)); else corrupt=$((corrupt + 1)); printf 'CORRUPT\t%s\tsha256 esperado %s, real %s\n' "$rel" "$sha" "$calc" >> "$informe"; fi

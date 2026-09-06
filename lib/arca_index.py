@@ -94,7 +94,10 @@ def extraer_pdf(ruta):
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return []
     paginas = salida.split("\f")
-    return [(i + 1, limpiar(t)) for i, t in enumerate(paginas) if limpiar(t)]
+    entradas = [(i + 1, limpiar(t)) for i, t in enumerate(paginas) if limpiar(t)]
+    # Un PDF escaneado sin capa de texto devuelve páginas vacías: se marca con su número de páginas real.
+    total = max(len(paginas) - 1, 1)
+    return entradas, total
 
 
 def extraer_epub(ruta):
@@ -176,36 +179,45 @@ def idioma_de(rel, texto):
 
 # ------------------------------------------------------------------ base de datos
 
+ESQUEMA = 2   # subir al cambiar el tokenizador o las tablas: el índice se reconstruye solo
+
+
 def abrir(db):
     os.makedirs(os.path.dirname(db), exist_ok=True)
     con = sqlite3.connect(db)
     con.execute("PRAGMA journal_mode=WAL")
+    if con.execute("PRAGMA user_version").fetchone()[0] != ESQUEMA:
+        con.execute("DROP TABLE IF EXISTS chunks")
+        con.execute("DROP TABLE IF EXISTS docs")
+        con.execute(f"PRAGMA user_version={ESQUEMA}")
     con.execute("""CREATE TABLE IF NOT EXISTS docs (
         id INTEGER PRIMARY KEY, path TEXT UNIQUE, title TEXT, category TEXT, language TEXT,
         priority TEXT, size INTEGER, mtime INTEGER, pages INTEGER, chunks INTEGER,
         needs_ocr INTEGER DEFAULT 0, indexed_at TEXT)""")
     con.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS chunks USING fts5(
         text, title, path UNINDEXED, doc_id UNINDEXED, page UNINDEXED, category UNINDEXED,
-        tokenize='unicode61 remove_diacritics 2')""")
+        tokenize='porter unicode61 remove_diacritics 2')""")
     return con
 
 
 def indexar_archivo(con, root, rel, meta):
     ruta = os.path.join(root, rel)
     st = os.stat(ruta)
-    fila = con.execute("SELECT id, size, mtime, needs_ocr FROM docs WHERE path=?", (rel,)).fetchone()
-    if fila and fila[1] == st.st_size and fila[2] == int(st.st_mtime):
+    fila = con.execute("SELECT id, size, mtime, needs_ocr, chunks FROM docs WHERE path=?", (rel,)).fetchone()
+    # Sin cambios en tamaño y fecha se conserva, salvo documentos vacíos y no marcados (se reintenta).
+    if fila and fila[1] == st.st_size and fila[2] == int(st.st_mtime) and (fila[4] > 0 or fila[3]):
         return "igual"
     ext = os.path.splitext(rel)[1].lower()
+    total_paginas = 0
     if ext == ".pdf":
-        entradas = extraer_pdf(ruta)
+        entradas, total_paginas = extraer_pdf(ruta)
     elif ext == ".epub":
         entradas = extraer_epub(ruta)
     else:
         entradas = extraer_texto(ruta)
     texto_total = sum(len(t) for _, t in entradas)
-    paginas = max((p for p, _ in entradas if p), default=0)
-    needs_ocr = 1 if (ext == ".pdf" and texto_total < MIN_TEXTO_PDF and paginas > 3) else 0
+    paginas = max((p for p, _ in entradas if p), default=0) or total_paginas
+    needs_ocr = 1 if (ext == ".pdf" and texto_total < MIN_TEXTO_PDF * max(1, total_paginas // 10) and total_paginas > 3) else 0
     if ext == ".pdf" and needs_ocr:
         # Sin texto: se registra el documento para poder hacer OCR después.
         entradas = []
@@ -320,8 +332,9 @@ def search(args, imprimir=True):
         return []
     filtro = " AND category=?" if args.category else ""
     params = [args.category] if args.category else []
+    # Las guías de navegación (START_HERE, LEEME, docs/) van después de manuales y libros a igual relevancia.
     sql = ("SELECT path, page, title, category, snippet(chunks, 0, '»', '«', '…', 24) AS s, bm25(chunks, 1.0, 0.5) AS r "
-           "FROM chunks WHERE chunks MATCH ?" + filtro + " ORDER BY r LIMIT ?")
+           "FROM chunks WHERE chunks MATCH ?" + filtro + " ORDER BY (category = 'documentacion' OR path LIKE '%LEEME%'), r LIMIT ?")
     filas = con.execute(sql, [q_and] + params + [args.n]).fetchall()
     if not filas and len(terminos) > 1:
         q_or = " OR ".join('"' + t + '"' for t in terminos)

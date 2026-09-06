@@ -406,13 +406,13 @@ TXT
 
 # docs/SOURCES_AND_LICENSES.md en el disco: procedencia y licencias agrupadas, desde el manifiesto.
 sources_licenses_generar() {
-  local salida="$RESPALDO/docs/SOURCES_AND_LICENSES.md"
-  [[ -s $MANIFEST_OUT ]] || return 0
+  local salida="$RESPALDO/docs/SOURCES_AND_LICENSES.md" origen="${MANIFEST_REG:-$MANIFEST_OUT}"
+  [[ -s $origen ]] || return 0
   mkdir -p "$RESPALDO/docs"
   {
     echo "# Fuentes y licencias del contenido instalado"
     echo
-    echo "Generado por ARCA el $(date '+%Y-%m-%d') a partir de MANIFEST.tsv (perfil ${ARCA_PERFIL:-?})."
+    echo "Generado por ARCA el $(date '+%Y-%m-%d') a partir del registro del manifiesto (perfil ${ARCA_PERFIL:-?})."
     echo "Cada archivo conserva la licencia de su autor u organismo; 'unknown' significa que ARCA no pudo"
     echo "confirmarla (consulta el propio documento). Wikipedia y proyectos Wikimedia: CC BY-SA 4.0;"
     echo "archive.org: dominio público salvo indicación; OMS y FAO: CC BY-NC-SA 3.0 IGO; gobierno de"
@@ -422,14 +422,14 @@ sources_licenses_generar() {
     echo
     echo "| Licencia | Archivos | Tamaño |"
     echo "|---|---|---|"
-    awk -F'\t' 'NR>1 && $12!="missing" {n[$8]++; b[$8]+=$2} END{for (l in n) printf "%s\t%d\t%d\n", l, n[l], b[l]}' "$MANIFEST_OUT" \
+    awk -F'\t' 'NR>1 && $12!="missing" {n[$8]++; b[$8]+=$2} END{for (l in n) printf "%s\t%d\t%d\n", l, n[l], b[l]}' "$origen" \
       | sort -t$'\t' -k3,3rn | while IFS=$'\t' read -r l n b; do printf '| %s | %d | %s |\n' "$l" "$n" "$(human "$b")"; done
     echo
     echo "## Resumen por origen"
     echo
     echo "| Origen (dominio) | Archivos |"
     echo "|---|---|"
-    awk -F'\t' 'NR>1 && $12!="missing" {s=$4; sub(/^[a-z]+:\/\//,"",s); sub(/\/.*/,"",s); n[s]++} END{for (o in n) printf "%s\t%d\n", o, n[o]}' "$MANIFEST_OUT" \
+    awk -F'\t' 'NR>1 && $12!="missing" {s=$4; sub(/^[a-z]+:\/\//,"",s); sub(/\/.*/,"",s); n[s]++} END{for (o in n) printf "%s\t%d\n", o, n[o]}' "$origen" \
       | sort -t$'\t' -k2,2rn | head -40 | while IFS=$'\t' read -r o n; do printf '| %s | %d |\n' "$o" "$n"; done
     echo
     echo "## Detalle"
