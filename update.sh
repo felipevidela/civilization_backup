@@ -6,18 +6,22 @@
 #   --check         solo informa qué hay nuevo y cuánto pesa; no descarga
 #   --zim-only      solo fase 3 (ZIM) + biblioteca + README
 #   --no-software   todo menos la fase 6 (software)
+#   --prune [--yes] lista (y con confirmación borra) lo instalado que ya no pertenece al perfil
+#                   ni a los extras activos; muestra antes qué borraría y cuánto liberaría
 #
 # Nunca deja el disco sin una versión funcional: descarga la nueva, verifica, borra la vieja.
 set -euo pipefail
 
 ARCA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESPALDO="${RESPALDO:-/srv/respaldo}"
-CHECK=0; ZIM_ONLY=0; NO_SOFTWARE=0
+CHECK=0; ZIM_ONLY=0; NO_SOFTWARE=0; PRUNE=0; SI=0
 while (( $# )); do
   case $1 in
     --check) CHECK=1 ;;
     --zim-only) ZIM_ONLY=1 ;;
     --no-software) NO_SOFTWARE=1 ;;
+    --prune) PRUNE=1 ;;
+    --yes|-y) SI=1 ;;
     -h|--help) sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Argumento desconocido: $1" >&2; exit 1 ;;
   esac
@@ -46,7 +50,14 @@ export USUARIO
 mkdir -p "$ARCA_STATE_DIR" "$ARCA_TMP" "$ARCA_LOG_DIR"
 log_init update
 mountpoint -q "$RESPALDO" || [[ ${ARCA_PERMITIR_SIN_MONTAJE:-0} == 1 ]] || die "$RESPALDO no está montado."
-curl -fsSI --connect-timeout 15 --max-time 30 "https://download.kiwix.org/" > /dev/null 2>&1 || die "Sin conexión a download.kiwix.org."
+(( PRUNE )) || curl -fsSI --connect-timeout 15 --max-time 30 "https://download.kiwix.org/" > /dev/null 2>&1 || die "Sin conexión a download.kiwix.org."
+
+# ---------------------------------------------------------------- --prune
+if (( PRUNE )); then
+  lock_acquire update || exit 1
+  podar_fuera_de_perfil "$SI"
+  exit 0
+fi
 
 # ---------------------------------------------------------------- --check
 if (( CHECK )); then
@@ -80,6 +91,8 @@ if (( CHECK )); then
     t=$(fetch_github_tag "$repo" 2>/dev/null || echo "?"); v=$(json_get "$SOFTWARE_JSON" "$clave" version || true)
     [[ $t != "${v:-}" ]] && printf '  %-55s release nueva %s (instalada: %s)\n' "$repo" "$t" "${v:-ninguna}"
   done
+  fuera=$(listar_fuera_de_perfil | awk -F'\t' '{n++; b+=$3} END{if (n) printf "%d recursos, %d bytes", n, b}')
+  [[ -n $fuera ]] && echo "  Instalado fuera del perfil (marcado como extra; se borra solo con update.sh --prune): $fuera"
   echo
   echo "  Descarga estimada de ZIM/manuales nuevos: $(human "$total")   Libre: $(human "$(space_free_bytes "$RESPALDO")")"
   [[ -s $FAILED_TXT ]] && { echo "  Errores pendientes:"; sed 's/^/     - /' "$FAILED_TXT"; }

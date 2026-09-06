@@ -21,7 +21,9 @@ case ${1:-} in
   -h|--help) sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
 esac
 export ARCA_STATE_DIR ARCA_TMP ARCA_LOG_COPY RESPALDO
-for lib in log space profiles fetch kiwix manifest; do
+PACKS_CONF="${PACKS_CONF:-$ARCA_DIR/packs.conf}"; MANUALS_CONF="${MANUALS_CONF:-$ARCA_DIR/manuals.conf}"; SOFTWARE_CONF="${SOFTWARE_CONF:-$ARCA_DIR/software.conf}"
+export PACKS_CONF MANUALS_CONF SOFTWARE_CONF
+for lib in log space state profiles fetch kiwix manifest phases; do
   # shellcheck disable=SC1090
   source "$ARCA_DIR/lib/$lib.sh"
 done
@@ -70,34 +72,83 @@ mkdir -p "$ARCA_TMP"; trap 'rm -rf "$ARCA_TMP"' EXIT
 PUERTO=8080
 ip=$(hostname -I 2>/dev/null | awk '{print $1}')
 
-echo "== arca: estado =="
-if systemctl is-active --quiet kiwix.service 2>/dev/null; then
-  echo "  kiwix.service:    activo desde $(systemctl show kiwix.service -p ActiveEnterTimestamp --value 2>/dev/null)"
-else
-  echo "  kiwix.service:    INACTIVO"
-fi
-if curl -sf --max-time 5 "http://localhost:$PUERTO/" > /dev/null 2>&1; then
-  echo "  Puerto $PUERTO:      responde → http://${ip:-IP}:$PUERTO"
-else
-  echo "  Puerto $PUERTO:      sin respuesta"
-fi
-if systemctl is-enabled --quiet arca-update.timer 2>/dev/null; then
-  echo "  Timer mensual:    activo (próxima: $(systemctl show arca-update.timer -p NextElapseUSecRealtime --value 2>/dev/null))"
-else
-  echo "  Timer mensual:    desactivado"
-fi
-echo "  Última actualización: $(cat "$ARCA_STATE_DIR/ultima-actualizacion" 2>/dev/null || echo nunca)"
-echo "  Último backup:        $(head -1 "$ARCA_STATE_DIR/ultimo-backup" 2>/dev/null || echo nunca) $(sed -n 2p "$ARCA_STATE_DIR/ultimo-backup" 2>/dev/null)"
-
+# ---------------------------------------------------------------- resumen global
+fecha_de() { [[ -s $1 ]] && head -1 "$1" | cut -c1-19 || echo nunca; }
+echo "ARCA — $(hostname) — $(date '+%Y-%m-%d %H:%M')"
+echo "Perfil:   $ARCA_PERFIL${ARCA_EXTRAS:+ + extras: $ARCA_EXTRAS}"
 echo
-echo "== Espacio en $RESPALDO =="
+echo "Disco ($RESPALDO):"
 if mountpoint -q "$RESPALDO"; then
-  df -h --output=size,used,avail,pcent "$RESPALDO" | tail -1 | awk '{printf "  total %s, usado %s, libre %s (%s)\n", $1, $2, $3, $4}'
-  for d in zim manuales libros mapas software personal; do
+  df -h --output=size,used,avail,pcent "$RESPALDO" | tail -1 | awk '{printf "  %s usados de %s, %s libres (%s)\n", $2, $1, $3, $4}'
+  for d in zim manuales libros mapas software referencia personal; do
     [[ -d "$RESPALDO/$d" ]] && printf '  %-12s %8s\n' "$d/" "$(du -sh "$RESPALDO/$d" 2>/dev/null | awk '{print $1}')"
   done
 else
   echo "  ¡NO ESTÁ MONTADO!"
+fi
+echo
+echo "Integridad:"
+if [[ -s "$ARCA_STATE_DIR/ultimo-scrub" ]]; then
+  echo "  último scrub: $(fecha_de "$ARCA_STATE_DIR/ultimo-scrub")  ($(sed -n 2p "$ARCA_STATE_DIR/ultimo-scrub"))"
+else
+  echo "  último scrub: nunca  (sudo $ARCA_DIR/check.sh --scrub)"
+fi
+if [[ -s $MANIFEST_OUT ]]; then
+  awk -F'\t' 'NR>1 {n[$12]++} END{printf "  manifiesto: %d entradas (%d ok, %d faltantes, %d sin registrar, %d con hash desconocido)\n", NR-1, n["ok"], n["missing"], n["unregistered"], 0}' "$MANIFEST_OUT"
+  awk -F'\t' 'NR>1 && $3=="unknown" && $12=="ok" {u++} END{printf "  sin sha256 (UNVERIFIED en el scrub): %d\n", u}' "$MANIFEST_OUT"
+else
+  echo "  manifiesto: no generado (sudo $ARCA_DIR/setup.sh --only 10)"
+fi
+echo "  paridad PAR2: $(find "$RESPALDO/recovery" -maxdepth 1 -name '*.par2' ! -name '*.vol*' 2>/dev/null | wc -l) conjuntos, última verificación $(fecha_de "$ARCA_STATE_DIR/ultimo-par2-verify")"
+echo
+echo "Contenido por prioridad (según MANIFEST.tsv):"
+if [[ -s $MANIFEST_OUT ]]; then
+  for pr in P0 P1 P2 P3 unknown; do
+    b=$(awk -F'\t' -v p="$pr" 'NR>1 && $9==p && $12!="missing" {s+=$2} END{printf "%d", s}' "$MANIFEST_OUT")
+    (( b > 0 )) && printf '  %-8s %10s\n' "$pr" "$(human "$b")"
+  done
+  fuera=$(listar_fuera_de_perfil 2>/dev/null | awk -F'\t' '{n++; b+=$3} END{if (n) printf "%d recursos, %s", n, b}')
+  [[ -n $fuera ]] && echo "  fuera del perfil (extra): ${fuera%%,*}, $(human "${fuera##*, }")  → sudo $ARCA_DIR/update.sh --prune"
+fi
+echo
+echo "Índice de búsqueda local:"
+if [[ -s "$ARCA_STATE_DIR/search.db" ]]; then
+  echo "  $(python3 "$ARCA_DIR/lib/arca_index.py" stats --db "$ARCA_STATE_DIR/search.db" 2>/dev/null | head -1)"
+else
+  echo "  no creado (sudo arca-index)"
+fi
+echo
+echo "Copias de seguridad:"
+echo "  último espejo:   $(fecha_de "$ARCA_STATE_DIR/ultimo-mirror") $(sed -n 2p "$ARCA_STATE_DIR/ultimo-mirror" 2>/dev/null)"
+echo "  último snapshot: $(fecha_de "$ARCA_STATE_DIR/ultimo-snapshot") $(sed -n 2p "$ARCA_STATE_DIR/ultimo-snapshot" 2>/dev/null)"
+echo
+echo "Servicios:"
+if systemctl is-active --quiet kiwix.service 2>/dev/null; then
+  echo "  kiwix:   activo desde $(systemctl show kiwix.service -p ActiveEnterTimestamp --value 2>/dev/null)"
+else
+  echo "  kiwix:   INACTIVO"
+fi
+if curl -sf --max-time 5 "http://localhost:$PUERTO/" > /dev/null 2>&1; then
+  echo "  puerto $PUERTO: responde → http://${ip:-IP}:$PUERTO"
+else
+  echo "  puerto $PUERTO: sin respuesta"
+fi
+if systemctl is-enabled --quiet arca-update.timer 2>/dev/null; then
+  echo "  actualización mensual: activa (próxima: $(systemctl show arca-update.timer -p NextElapseUSecRealtime --value 2>/dev/null))"
+else
+  echo "  actualización mensual: desactivada"
+fi
+echo "  última actualización: $(cat "$ARCA_STATE_DIR/ultima-actualizacion" 2>/dev/null || echo nunca)"
+llm_dir="$RESPALDO/software/llm"
+if [[ -x "$llm_dir/llama.cpp/build/bin/llama-server" ]] && ls "$llm_dir"/modelos/*.gguf > /dev/null 2>&1; then
+  echo "  LLM:     disponible ($(find "$llm_dir/modelos" -maxdepth 1 -name '*.gguf' -printf '%f ' 2>/dev/null))"
+else
+  echo "  LLM:     no disponible"
+fi
+if [[ -s "$ARCA_STATE_DIR/failed.txt" ]]; then
+  echo "  errores pendientes: $(grep -c . "$ARCA_STATE_DIR/failed.txt") (ver al final)"
+else
+  echo "  errores pendientes: ninguno"
 fi
 
 echo
