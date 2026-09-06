@@ -403,6 +403,8 @@ fase_4() {
       failed_add "$clave" "no se pudo descargar $u"
     fi
   done < <(manuals_read)
+  # Índices comentados que acompañan a las colecciones.
+  [[ -d "$RESPALDO/libros/fundacionales" ]] && cp "$ARCA_DIR/docs/fundacionales.md" "$RESPALDO/libros/fundacionales/LEEME.md"
   chown_respaldo "$RESPALDO/manuales" "$RESPALDO/libros" "$MANUALS_JSON"
 }
 

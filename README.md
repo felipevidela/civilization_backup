@@ -85,6 +85,7 @@ Tamaños reales de septiembre de 2026 (los ZIM crecen con cada versión):
 | Britannica 1911 (30 tomos), Harvard Classics (51 vol.), Biblioteca de Autores Españoles (55 tomos) | 9 GB |
 | OpenStax: libros de texto universitarios en español (11) e inglés (73) en PDF | 5 GB |
 | IA desde cero: 5 libros, 24 artículos fundacionales, código de referencia, ruedas de PyTorch | 1 GB |
+| Descubrimientos fundacionales: 40 textos originales (Euclides, Copérnico, Newton, Darwin, Maxwell, Turing…) | 1 GB |
 | Mapas de Chile, Argentina, Perú y Bolivia | 1.6 GB |
 | Software: .deb, AppImage, APK, ISO de Ubuntu 24.04, llama.cpp, modelos Qwen2.5 7B y 3B | 15 GB |
 | **Total aproximado** | **~800 GB** |
@@ -223,6 +224,14 @@ referencia clonado con historial (micrograd, minbpe, nanoGPT, llm.c, LLMs-from-s
 y las ruedas de PyTorch y NumPy para instalarlas sin internet. El propio llama.cpp y el modelo
 GGUF incluidos son el resultado final del proceso.
 
+## Los textos que fundaron la ciencia
+
+`/srv/respaldo/libros/fundacionales/` reúne 40 obras originales de dominio público, de Euclides
+y Copérnico a Turing y Shannon, con la Declaración de Derechos Humanos en español e inglés y
+Darwin también en español. `LEEME.md` en esa carpeta ([docs/fundacionales.md](docs/fundacionales.md))
+explica en una tabla qué es cada obra y por qué importa, e indica dónde encontrar en los ZIM las
+obras de filosofía, religión y literatura.
+
 ## Agregar libros propios a Calibre
 
 Copia tus EPUB o PDF sin DRM a `/srv/respaldo/libros/propios/`. En Calibre: menú "Biblioteca" →
@@ -279,7 +288,7 @@ manuals.conf    PDF y recursos sueltos
 software.conf   software de rescate, mapas y LLM
 lib/            log, espacio, estado/lock, descargas, kiwix, fases, README.txt, motd
 llm/            preguntar.py: chat con búsqueda en la biblioteca
-docs/           ia-desde-cero.md: guía para construir una IA con lo que hay en el disco
+docs/           ia-desde-cero.md y fundacionales.md: guías que se copian al disco como LEEME.md
 systemd/        kiwix.service, arca-update.{service,timer}, arca-motd.service
 ```
 
