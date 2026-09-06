@@ -1,51 +1,83 @@
 # ARCA
 
-Offline Civilization Recovery Archive. Archivo de recuperación de la civilización, fuera de línea.
+Kit de quince años para vivir sin red. Archivo offline en español, pensado para una familia o un
+pueblo chico del Cono Sur.
 
-ARCA instala y mantiene en un PC con Ubuntu 24.04 una biblioteca de hasta 1 TB con el mínimo
-práctico de conocimiento, herramientas, software y documentación para que una comunidad pueda
-pasar de la supervivencia y el saneamiento básico a la agricultura estable, la industria, la
-electricidad, la ciencia y la computación. Todo funciona sin internet una vez instalado y se
-consulta desde cualquier dispositivo de la red en `http://IP:8080`.
+ARCA convierte un PC con Ubuntu 24.04 en la biblioteca y el servidor de conocimiento de un grupo
+que se quedó sin internet, sin repuestos y sin hospital cerca: cómo potabilizar el agua, tratar
+una herida, cultivar y guardar comida, levantar una letrina, reparar lo que hay y enseñarle un
+oficio a un adolescente. Se consulta desde cualquier teléfono o computador de la casa en
+`http://IP:8080`, sin internet.
 
-La pregunta que decide qué entra: *¿cuántos años de redescubrimiento técnico, científico, médico
-o institucional ahorra este recurso?* ([docs/CONTENT_POLICY.md](docs/CONTENT_POLICY.md)).
+Lo que decide qué entra, en este orden:
+
+1. ¿Evita una muerte o una hambruna en los próximos 24 meses, aquí?
+2. ¿Deja un oficio enseñable a un adolescente en tres años?
+3. ¿Cabe en papel o en un USB, además del disco?
+4. Solo después: ¿ahorra redescubrimiento técnico a largo plazo?
+
+**El PC se va a morir.** Un disco duro encendido a diario dura de 5 a 8 años; la fuente y la
+placa, de 8 a 15. Este archivo es una linterna de quince años, no una catedral. Lo único que
+sobrevive de verdad es el papel que imprimas y lo que la gente aprenda: por eso lo primero que
+hace ARCA es darte 20 fichas para imprimir ([`printkit/`](printkit/)), y por eso hay que
+verificar y copiar el disco todos los años.
+
+Reconstruir la civilización industrial es un subproducto, no la meta: vive en los perfiles
+`recovery` y `full`, para cuando ya no se muera nadie. Ver
+[docs/CONTENT_POLICY.md](docs/CONTENT_POLICY.md).
 
 ## Inicio rápido
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/felipevidela/civilization_backup/main/install.sh | sudo bash -s -- --profile recovery
-```
-
-Para ver primero qué haría y cuánto pesa, sin descargar nada:
+Modo quince años, unos 55 GB:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/felipevidela/civilization_backup/main/install.sh | sudo bash -s -- --profile recovery --dry-run
+curl -fsSL https://raw.githubusercontent.com/felipevidela/civilization_backup/main/install.sh | sudo bash -s -- --profile survive
 ```
+
+Para ver antes qué haría y cuánto pesa, sin descargar nada, añade `--dry-run`. Para el archivo
+completo con el legado industrial y cultural, `--profile full`.
 
 Requisitos: Ubuntu 24.04 LTS, un usuario con `sudo`, 8 GB de RAM, un disco montado en
-`/srv/respaldo` (ext4 o exFAT) e internet durante la instalación. Recomendado: SSD para `/` y
-disco de 1 TB para `/srv/respaldo`. La instalación tarda de horas a días según el perfil y la
-conexión; conviene lanzarla dentro de `tmux`. Si se corta, `sudo /opt/arca/setup.sh` continúa
-donde quedó.
+`/srv/respaldo` (ext4 o exFAT) e internet **durante la instalación**. La instalación tarda de
+horas a días según el perfil y la conexión; conviene lanzarla dentro de `tmux`. Si se corta,
+`sudo /opt/arca/setup.sh` continúa donde quedó.
+
+## Lo primero: imprimir
+
+```bash
+ls /srv/respaldo/printkit/fichas/     # 20 fichas de una cara
+cat /srv/respaldo/printkit/README.md  # cómo imprimirlas
+```
+
+Veinte fichas de una hoja cada una: agua, herida, letrina, diarrea, parto, jabón, conserva,
+semilla, sismo, leña, gallinas, radio, y cómo copiar y verificar este archivo. Español llano,
+sin PC. Si no las imprimiste, el proyecto todavía no está terminado aunque Kiwix funcione.
 
 ## Perfiles
 
 | Perfil | Tamaño real (2026-09) | Contenido |
 |---|---|---|
-| `core` | ~63 GB | Medicina austera y actual (Hesperian, MSF, OMS), agua y saneamiento, agricultura y conservación de alimentos (FAO, USDA), tecnología apropiada, reparación, Wikipedia en español, Wikipedia médica, LibreTexts, manuales de taller esenciales (Navy Machinery Repairman, NEETS), mapas regionales y del mundo, software para leerlo todo, modelo de lenguaje pequeño, referencia (unidades, constantes, tabla periódica). |
-| `recovery` | ~255 GB | core + Wikipedia en inglés con imágenes, manufactura, materiales, energía, electricidad, telecomunicaciones, construcción, instituciones, computación (DevDocs, Stack Exchange técnicos, código fuente fundamental), OpenStax, kit de IA, ISO de Ubuntu, modelo de lenguaje grande. |
-| `full` (por defecto) | ~480 GB | recovery + Khan Academy y CrashCourse (video), Wikisource, Wikiquote, textos fundacionales, Britannica 1911, Harvard Classics, Biblioteca de Autores Españoles, Stack Exchange de humanidades. Deja ~400 GB libres en 1 TB. |
-| extras | opcionales | `gutenberg-full` (206 GB), `stackoverflow-full` (107 GB), `wikipedia-fr` (50 GB), `wikipedia-en-nopic` (49 GB): `--extra nombre`. |
+| `survive` (alias `15y`) | ~55 GB | Los quince años: medicina austera (Hesperian) y actual (MSF, OMS), agua y saneamiento, alimentos y conservas, huerta y semillas, animales de patio, sismo y clima, reparación, Wikipedia en español, Wikipedia médica, tecnología apropiada, mapas del país, referencia, modelo de lenguaje de 3B, print-kit. |
+| `core` | ~63 GB | survive + ciencia y matemáticas de base (LibreTexts), diccionarios, material escolar, energía. |
+| `recovery` | ~255 GB | core + oficios e industria: manufactura y metrología, materiales, electricidad, telecomunicaciones, construcción, instituciones, computación (DevDocs, Stack Exchange técnicos, código fuente), OpenStax, ISO de Ubuntu, modelo de 7B, kit de IA. |
+| `full` (por defecto) | ~480 GB | recovery + legado y cultura: Khan Academy y CrashCourse, Wikisource, textos fundacionales, Britannica 1911, Harvard Classics, Biblioteca de Autores Españoles, Stack Exchange de humanidades. Deja ~400 GB libres en 1 TB. |
+| extras | opcionales | `cono-sur` (Chile y vecinos), `gutenberg-full` (206 GB), `stackoverflow-full` (107 GB), `wikipedia-fr` (50 GB), `wikipedia-en-nopic` (49 GB): `--extra nombre`. |
+
+`survive` ⊂ `core` ⊂ `recovery` ⊂ `full`: subir de perfil solo agrega, nunca quita. `full` sigue
+siendo el valor por defecto para no romper instalaciones existentes; si empiezas de cero y el
+disco es chico o el momento es malo, usa `survive`.
 
 ```bash
-sudo /opt/arca/setup.sh --profile core
+sudo /opt/arca/setup.sh --profile survive --extra cono-sur
 sudo /opt/arca/setup.sh --profile full --extra gutenberg-full
 ```
 
 El perfil se recuerda en `/srv/respaldo/.arca/profile`; `update.sh` lo respeta. Cambiar a un
 perfil mayor descarga lo que falte; cambiar a uno menor no borra nada hasta ejecutar
 `update.sh --prune`.
+
+En un USB: `survive` sin la Wikipedia en español con imágenes (38 GB) baja a unos 17 GB y cabe
+en un USB de 32 GB; completo necesita uno de 128 GB. Ver [docs/BOM_15Y.md](docs/BOM_15Y.md).
 
 ## Arquitectura
 
@@ -63,19 +95,21 @@ Detalle completo en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Qué hay en el disco
 
 ```
-START_HERE.txt / _ES / _EN / .html   empieza aquí (legible sin ningún programa)
+printkit/                             20 fichas para imprimir + START_HERE_PAPEL.txt
+START_HERE.txt / _ES / _EN / .html    empieza aquí (legible sin ningún programa)
 MANIFEST.tsv                          todos los archivos con sha256, origen, licencia y prioridad
 zim/         enciclopedias y cursos (Kiwix)       manuales/   PDF por dominio, con LEEME en cada carpeta
 libros/      textos fundacionales, clásicos, OpenStax        referencia/  unidades, constantes, tablas
 mapas/       Organic Maps + Natural Earth          software/   instaladores, código fuente, IA
-docs/        TECH_TREE, RECOVERY_ROADMAP, DIGITAL_FORMATS    bootstrap/  mínimo para reabrir el archivo
+docs/        TECH_TREE, RECOVERY_ROADMAP, BOM_15Y, LOCAL     bootstrap/  mínimo para reabrir el archivo
 recovery/    paridad PAR2 del núcleo crítico       personal/   tus archivos
 ```
 
-Guías: [docs/TECH_TREE.md](docs/TECH_TREE.md) (qué depende de qué),
-[docs/RECOVERY_ROADMAP.md](docs/RECOVERY_ROADMAP.md) (niveles 0-7),
-[docs/DIGITAL_FORMATS.md](docs/DIGITAL_FORMATS.md) (cómo interpretar los archivos),
-[docs/fundacionales.md](docs/fundacionales.md), [docs/ia-desde-cero.md](docs/ia-desde-cero.md).
+Guías: [docs/RECOVERY_ROADMAP.md](docs/RECOVERY_ROADMAP.md) (qué hacer la semana 1, el mes 1,
+el año 1, el año 5, el año 15), [docs/BOM_15Y.md](docs/BOM_15Y.md) (qué comprar antes),
+[docs/LOCAL.md](docs/LOCAL.md) (qué bajar a mano de tu país),
+[docs/TECH_TREE.md](docs/TECH_TREE.md) (qué depende de qué),
+[docs/DIGITAL_FORMATS.md](docs/DIGITAL_FORMATS.md) (cómo interpretar los archivos).
 
 ## Usar
 
@@ -86,10 +120,25 @@ Guías: [docs/TECH_TREE.md](docs/TECH_TREE.md) (qué depende de qué),
 - **Preguntar a la IA con la biblioteca**: `/srv/respaldo/software/llm/preguntar.sh "¿cómo se
   hace jabón?"` combina Kiwix y el índice local y cita las fuentes. En medicina, agua y química
   solo responde con fuentes (`SOURCE_ONLY`); si no las hay, dice que no está en la biblioteca.
-  `--rapido` usa el modelo de 3B. `chat.sh` es el chat libre; `chat.sh --server` da una web en el
-  puerto 8081.
+  En `survive` y `core` el modelo es el de 3B; el de 7B llega con `recovery`. `chat.sh` es el
+  chat libre; `chat.sh --server` da una web en el puerto 8081.
+  **La IA es un índice, no un médico**: para dosis, partos, venenos o agua, abre el PDF que cita.
 - **Estado**: `sudo /opt/arca/check.sh` (perfil, disco, integridad, contenido por prioridad,
   índice, copias, servicios, errores).
+
+## El disco se va a morir: qué hacer al respecto
+
+Tres copias, dos medios, una fuera de la casa. Calendario mínimo:
+
+| Cuándo | Qué |
+|---|---|
+| Mes 0 | Imprimir `printkit/`. Espejo a un disco externo. Copiar `survive` a un USB. |
+| Cada mes | `sudo /opt/arca/check.sh` (mira errores y días desde el último scrub). |
+| Cada 12 meses | `sudo /opt/arca/check.sh --scrub` completo y un snapshot nuevo. Reimprimir lo que se haya mojado o perdido. |
+| Cada 5 años | Disco nuevo: copiar todo y verificar antes de jubilar el viejo. |
+
+Para archivo frío usa HDD, no SSD: un SSD desconectado años pierde la carga de sus celdas.
+El SSD sirve para `/`, no para la biblioteca guardada en un cajón.
 
 ## Integridad
 
@@ -126,23 +175,25 @@ sudo /opt/arca/update.sh --prune   # lista lo que ya no pertenece al perfil y pi
 Un ZIM nuevo se descarga entero y se verifica antes de borrar el viejo. Con
 `MARGEN_ESPACIO_PCT=15` y `ZIM_BORRAR_VIEJO_SI_NO_CABE=0` (por defecto) nunca se queda sin una
 versión funcional. El timer `arca-update.timer` corre cada mes;
-`sudo systemctl disable --now arca-update.timer` lo detiene.
+`sudo systemctl disable --now arca-update.timer` lo detiene. Cuando ya no haya internet, el
+timer no molesta: falla, lo anota y sigue.
 
 ## Restaurar
 
 Con el disco montado en `/srv/respaldo` y sin internet: instala Ubuntu desde `software/iso/`,
 `cd software/deb && sudo dpkg -i *.deb`, `tar xf bootstrap/arca-src.tar -C /opt` y
 `sudo /opt/arca/setup.sh --profile <el tuyo> --from 7`. Sin nada instalado: el `kiwix-serve`
-estático de `bootstrap/` sirve los ZIM desde cualquier Linux. Todo está en `START_HERE.txt`.
+estático de `bootstrap/` sirve los ZIM desde cualquier Linux. Todo está en `START_HERE.txt` y,
+en papel, en `printkit/START_HERE_PAPEL.txt`.
 
 ## Personalizar y proponer contenido
 
 Edita `packs.conf`, `manuals.conf` o `software.conf` en `/opt/arca` y ejecuta
-`sudo /opt/arca/update.sh`. Cada recurso lleva perfil, prioridad (P0 esencial, P1 muy
-importante, P2 complementario, P3 cultural), categoría y licencia; `setup.sh --dry-run`
-resuelve la URL y muestra el tamaño real antes de descargar. Criterios en
-[docs/CONTENT_POLICY.md](docs/CONTENT_POLICY.md); procedencia en
-[docs/SOURCES_AND_LICENSES.md](docs/SOURCES_AND_LICENSES.md). Recursos que no tienen descarga
+`sudo /opt/arca/update.sh`. Cada recurso lleva perfil, prioridad (P0 vivir 15 años, P1 oficios,
+P2 legado, P3 cultura), categoría y licencia; `setup.sh --dry-run` resuelve la URL y muestra el
+tamaño real antes de descargar. Criterios en [docs/CONTENT_POLICY.md](docs/CONTENT_POLICY.md);
+procedencia en [docs/SOURCES_AND_LICENSES.md](docs/SOURCES_AND_LICENSES.md). Lo que tu zona
+necesita y no se puede bajar solo está en [docs/LOCAL.md](docs/LOCAL.md). Recursos sin descarga
 automática (Hesperian en español, Feynman, Standard Ebooks, Where There Is No Vet) están
 documentados como TODO en `manuals.conf`.
 
@@ -151,7 +202,8 @@ documentados como TODO en `manuals.conf`.
 `setup.sh` reconoce el estado previo: mueve los manuales a las carpetas nuevas
 (`manuales/medicina/actual`, `manuales/agua`, ...), registra en el manifiesto lo que ya
 existe y marca como `extra` lo que no pertenece al perfil elegido. No borra nada por sí solo;
-`update.sh --prune` muestra qué liberaría y pide confirmación (`--yes` para omitirla).
+`update.sh --prune` muestra qué liberaría y pide confirmación (`--yes` para omitirla). Bajar de
+`full` a `survive` no borra los 400 GB de legado hasta que lo pidas.
 
 ## Pruebas
 
