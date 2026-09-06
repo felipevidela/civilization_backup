@@ -207,7 +207,7 @@ listar_desactivados() {
   local p pr cat carpeta prefijo d u desc lic linea
   while IFS=$'\t' read -r p pr cat carpeta prefijo; do
     recurso_activo "$p" && continue
-    linea=$(grep -F "$carpeta/$prefijo" "$PACKS_CONF" | head -1 | sed -E 's/.*#[[:space:]]*//')
+    linea=$(grep -F -m1 "$carpeta/$prefijo" "$PACKS_CONF" | sed -E 's/.*#[[:space:]]*//' || true)
     printf 'zim\t%s\t%s\t%s\n' "$prefijo" "$p" "${linea:-?}"
   done < <(packs_read "$PACKS_CONF")
   while IFS=$'\t' read -r p pr cat d u desc lic; do
@@ -231,7 +231,8 @@ resumen_estimacion() {
     printf '  %-22s %10s\n' "$(prioridad_nombre "$pr")" "$(human "$(awk -F'\t' -v p="$pr" '$5==p{s+=$3} END{printf "%d", s}' <<< "$tabla")")"
   done
   echo "Recursos más pesados:"
-  sort -t$'\t' -k3,3rn <<< "$tabla" | head -8 | while IFS=$'\t' read -r _ n b e _; do printf '  %-62s %10s  %s\n' "${n:0:62}" "$(human "$b")" "$e"; done
+  # "|| true": head cierra la tubería y sort fallaría por SIGPIPE con pipefail.
+  sort -t$'\t' -k3,3rn <<< "$tabla" | head -8 | while IFS=$'\t' read -r _ n b e _; do printf '  %-62s %10s  %s\n' "${n:0:62}" "$(human "$b")" "$e"; done || true
   printf '\nYa en disco: %s   Pendiente de descargar: %s   Con %d%% de margen: %s\n' \
     "$(human "$instalado")" "$(human "$pendiente")" "$MARGEN_PCT" "$(human "$necesario")"
   if (( libre >= pendiente )); then
@@ -303,7 +304,7 @@ fase_0() {
     log_error "No cabe: faltan $(human "$deficit")."
     echo "Elige un perfil menor (--profile recovery / core), quita extras, o comenta en $PACKS_CONF alguna de estas líneas hasta liberar $(human "$deficit"):"
     awk -F'\t' '$1=="zim" && $4=="pendiente"{print $3"\t"$2}' <<< "$tabla" | sort -rn | head -8 \
-      | while IFS=$'\t' read -r b n; do printf '   %-60s %s\n' "$n" "$(human "$b")"; done
+      | while IFS=$'\t' read -r b n; do printf '   %-60s %s\n' "$n" "$(human "$b")"; done || true
     return 1
   fi
   log_ok "Espacio suficiente."
@@ -887,7 +888,8 @@ fase_8() {
   systemctl daemon-reload
   systemctl enable -q arca-motd.service
   "$ARCA_DIR/lib/motd.sh" || true
-  if command -v ufw > /dev/null && ufw status 2>/dev/null | grep -q '^Status: active'; then
+  # Sin "| grep -q": ufw seguiría escribiendo tras cerrarse la tubería y el if fallaría en silencio.
+  if command -v ufw > /dev/null && [[ $(ufw status 2>/dev/null || true) == *"Status: active"* ]]; then
     ufw allow "$PUERTO/tcp" > /dev/null && log_ok "Puerto $PUERTO abierto en ufw."
   fi
 }
@@ -1025,7 +1027,7 @@ podar_fuera_de_perfil() {
     manifest_del "$ruta"
     if [[ $t == zim ]]; then
       hubo_zim=1
-      local pref; pref=$(jq -r --arg a "$(basename "$ruta")" 'to_entries[] | select(.value.archivo==$a) | .key' "$ZIM_JSON" 2>/dev/null | head -1)
+      local pref; pref=$(jq -r --arg a "$(basename "$ruta")" 'first(to_entries[] | select(.value.archivo==$a) | .key) // empty' "$ZIM_JSON" 2>/dev/null || true)
       [[ -n $pref ]] && zim_json_del "$pref"
     fi
     log_info "Borrado: $ruta ($(human "$bytes"))"

@@ -301,7 +301,7 @@ bootstrap_generar() {
   for f in "$RESPALDO"/software/deb/kiwix-tools_*.deb "$RESPALDO"/software/deb/par2_*.deb "$RESPALDO"/software/deb/libzim*.deb "$RESPALDO"/software/deb/libkiwix*.deb; do
     [[ -f $f ]] && { ln -f "$f" "$b/deb/$(basename "$f")" 2>/dev/null || cp "$f" "$b/deb/"; }
   done
-  local iso; iso=$(find "$RESPALDO/software/iso" -name '*.iso' 2>/dev/null | head -1)
+  local iso; iso=$(find "$RESPALDO/software/iso" -name '*.iso' -print -quit 2>/dev/null || true)
   cat > "$b/RESTAURAR.txt" <<TXT
 BOOTSTRAP DE ARCA — lo mínimo para volver a abrir el archivo
 Generado: $(date -Is)   Perfil: ${ARCA_PERFIL:-?}
@@ -430,7 +430,7 @@ sources_licenses_generar() {
     echo "| Origen (dominio) | Archivos |"
     echo "|---|---|"
     awk -F'\t' 'NR>1 && $12!="missing" {s=$4; sub(/^[a-z]+:\/\//,"",s); sub(/\/.*/,"",s); n[s]++} END{for (o in n) printf "%s\t%d\n", o, n[o]}' "$origen" \
-      | sort -t$'\t' -k2,2rn | head -40 | while IFS=$'\t' read -r o n; do printf '| %s | %d |\n' "$o" "$n"; done
+      | sort -t$'\t' -k2,2rn | head -40 | while IFS=$'\t' read -r o n; do printf '| %s | %d |\n' "$o" "$n"; done || true
     echo
     echo "## Detalle"
     echo

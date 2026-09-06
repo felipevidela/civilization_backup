@@ -98,8 +98,7 @@ fetch_verify_sha256() {
 fetch_github_asset() {
   local repo=$1 regex=$2
   _curl -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$repo/releases/latest" \
-    | jq -r --arg re "$regex" '.tag_name as $t | .assets[] | select(.name|test($re)) | [$t, .name, .size, .browser_download_url] | @tsv' \
-    | head -1
+    | jq -r --arg re "$regex" '.tag_name as $t | first(.assets[] | select(.name|test($re)) | [$t, .name, .size, .browser_download_url] | @tsv) // empty'
 }
 
 # Tag de la última release de GitHub.
@@ -136,7 +135,9 @@ fetch_ia_files() {
 # URL del ZIP completo de un curso de MIT OpenCourseWare.
 fetch_ocw_zip() {
   local slug=$1
-  _curl "https://ocw.mit.edu/courses/$slug/download" | grep -o 'https://ocw.mit.edu/courses/[^"]*\.zip' | head -1
+  local pagina
+  pagina=$(_curl "https://ocw.mit.edu/courses/$slug/download") || return 1
+  grep -o -m1 'https://ocw.mit.edu/courses/[^"]*\.zip' <<< "$pagina" || true
 }
 
 # Libros de texto OpenStax con PDF: imprime "título<TAB>url" por línea. Idioma en|es.

@@ -39,7 +39,7 @@ manifest_add() {
   else
     size=$(stat -c %s "$abs"); mtime=$(stat -c %Y "$abs")
     if [[ -z $sha ]]; then
-      prev=$(awk -F'\t' -v p="$rel" -v s="$size" -v m="$mtime" '$1==p && $2==s && $13==m {print $3}' "$MANIFEST_REG" | head -1)
+      prev=$(awk -F'\t' -v p="$rel" -v s="$size" -v m="$mtime" '$1==p && $2==s && $13==m {print $3; exit}' "$MANIFEST_REG")
       if [[ -n $prev && $prev != unknown ]]; then
         sha=$prev
       elif (( size <= MANIFEST_MAX_HASH_BYTES )); then
