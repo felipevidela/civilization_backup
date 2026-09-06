@@ -111,7 +111,7 @@ drama si el disco muere.
 | **`core`** | ~63 GB | survive + ciencia básica (LibreTexts), educación, diccionarios, energía. |
 | **`recovery`** | ~255 GB | core + oficios e industria: manufactura, materiales, electricidad, telecomunicaciones, construcción, computación, código fuente, OpenStax, ISO de Ubuntu, modelo de 7B, kit de IA. |
 | **`full`** | ~480 GB | recovery + legado y cultura: Khan Academy, CrashCourse, Wikisource, textos fundacionales, Britannica, Harvard Classics, Stack Exchange de humanidades. |
-| extras | opcionales | `cono-sur` (Chile y vecinos), `gutenberg-full`, `stackoverflow-full`, `wikipedia-fr`, `wikipedia-en-nopic`. |
+| extras | opcionales | `cono-sur` (Chile y vecinos), `literatura` (57 GB, ver [CANON_LITERARIO.md](CANON_LITERARIO.md)), `gutenberg-full`, `stackoverflow-full`, `wikipedia-fr`, `wikipedia-en-nopic`. |
 
 `full` debe dejar al menos 150 GB libres en un disco de 1 TB para poder descargar versiones
 nuevas antes de borrar las viejas.

@@ -64,7 +64,7 @@ imprimiste, el proyecto todavía no está terminado aunque Kiwix funcione.
 | `core` | ~63 GB | survive + ciencia y matemáticas de base (LibreTexts), diccionarios, material escolar, energía. |
 | `recovery` | ~255 GB | core + oficios e industria: manufactura y metrología, materiales, electricidad, telecomunicaciones, construcción, instituciones, computación (DevDocs, Stack Exchange técnicos, código fuente), OpenStax, ISO de Ubuntu, modelo de 7B, kit de IA. |
 | `full` (por defecto) | ~480 GB | recovery + legado y cultura: Khan Academy y CrashCourse, Wikisource, textos fundacionales, Britannica 1911, Harvard Classics, Biblioteca de Autores Españoles, Stack Exchange de humanidades. Deja ~400 GB libres en 1 TB. |
-| extras | opcionales | `cono-sur` (Chile y vecinos), `gutenberg-full` (206 GB), `stackoverflow-full` (107 GB), `wikipedia-fr` (50 GB), `wikipedia-en-nopic` (49 GB): `--extra nombre`. |
+| extras | opcionales | `cono-sur` (Chile y vecinos), `literatura` (57 GB: toda la literatura de Gutenberg más obras hispanoamericanas), `gutenberg-full` (206 GB), `stackoverflow-full` (107 GB), `wikipedia-fr` (50 GB), `wikipedia-en-nopic` (49 GB): `--extra nombre`. |
 
 `survive` ⊂ `core` ⊂ `recovery` ⊂ `full`: subir de perfil solo agrega, nunca quita. `full` sigue
 siendo el valor por defecto para no romper instalaciones existentes; si empiezas de cero y el
@@ -113,6 +113,7 @@ Guías: [docs/ESCENARIOS.md](docs/ESCENARIOS.md) (qué abrir según lo que pase)
 el año 1, el año 5, el año 15), [docs/BOM_15Y.md](docs/BOM_15Y.md) (qué comprar antes),
 [docs/LOCAL.md](docs/LOCAL.md) (qué bajar a mano de tu país),
 [docs/TECH_TREE.md](docs/TECH_TREE.md) (qué depende de qué),
+[docs/CANON_LITERARIO.md](docs/CANON_LITERARIO.md) (qué leer y dónde está),
 [docs/DIGITAL_FORMATS.md](docs/DIGITAL_FORMATS.md) (cómo interpretar los archivos).
 
 ## Usar

@@ -75,6 +75,9 @@ recurso_activo() {
 # Imprime "perfil<TAB>prioridad<TAB>categoria<TAB>resto". Sin atributos: full P2 general.
 atributos_de_linea() {
   local linea=$1 p pr c resto
+  # IFS propio: quien llama suele hacer "IFS=$'\t' read ... <<< $(atributos_de_linea ...)",
+  # y ese IFS se hereda aquí y rompería la separación por espacios.
+  local IFS=$' \t\n'
   read -r p pr c resto <<< "$linea"
   if [[ $p =~ ^(survive|core|recovery|full|extra:[a-z0-9-]+)$ && $pr =~ ^P[0-3]$ && -n $c && -n $resto ]]; then
     printf '%s\t%s\t%s\t%s\n' "$p" "$pr" "$c" "$resto"
