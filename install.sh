@@ -4,9 +4,10 @@
 #
 # Verifica distro, root e internet; instala git y curl; clona (o actualiza) el repo en
 # /opt/arca y ejecuta setup.sh con los argumentos recibidos:
-#   curl -fsSL .../install.sh | sudo bash -s -- --profile recovery
-#   curl -fsSL .../install.sh | sudo bash -s -- --profile core --dry-run
-# Perfiles: core (≈60 GB), recovery (≈255 GB), full (≈480 GB, por defecto); extras con --extra.
+#   curl -fsSL .../install.sh | sudo bash -s -- --profile survive
+#   curl -fsSL .../install.sh | sudo bash -s -- --profile survive --dry-run
+# Perfiles: survive (≈55 GB, vivir 15 años; alias 15y), core (≈63 GB), recovery (≈255 GB),
+# full (≈480 GB, por defecto). Extras con --extra: cono-sur, gutenberg-full, stackoverflow-full.
 #
 # Todo va dentro de main() para que una descarga cortada a medias no ejecute nada.
 set -euo pipefail

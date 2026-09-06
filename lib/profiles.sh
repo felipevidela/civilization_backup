@@ -1,24 +1,33 @@
 # shellcheck shell=bash
-# lib/profiles.sh — perfiles de instalación (core ⊂ recovery ⊂ full) y extras opcionales.
+# lib/profiles.sh — perfiles de instalación (survive ⊂ core ⊂ recovery ⊂ full) y extras.
 #
 # Cada recurso de packs.conf, manuals.conf y software.conf declara su perfil mínimo:
-#   core      conocimiento esencial (≈60 GB)
-#   recovery  core + ciencia, ingeniería, manufactura, energía, computación (≈255 GB)
-#   full      recovery + cultura, historia, video educativo, colecciones (≈490 GB)
+#   survive   vivir quince años sin red: agua, medicina, comida, huerta, sismo (≈55 GB)
+#   core      survive + ciencia y matemáticas de base, educación, energía (≈63 GB)
+#   recovery  core + oficios e industria: manufactura, materiales, computación (≈255 GB)
+#   full      recovery + legado y cultura: video educativo, clásicos, humanidades (≈480 GB)
 #   extra:X   solo si el usuario activa el extra X (--extra X)
 # El perfil elegido se guarda en $ARCA_STATE_DIR/profile y los extras en $ARCA_STATE_DIR/extras.
+# "15y" es alias de "survive".
 
 ARCA_PERFIL="${ARCA_PERFIL:-}"
 ARCA_EXTRAS="${ARCA_EXTRAS:-}"
 PERFIL_POR_DEFECTO="full"
 
+# Normaliza alias: 15y → survive.
+perfil_normalizar() {
+  case $1 in
+    15y|15Y) echo survive ;; *) echo "$1" ;;
+  esac
+}
+
 perfil_valido() {
-  [[ $1 =~ ^(core|recovery|full)$ ]]
+  [[ $(perfil_normalizar "$1") =~ ^(survive|core|recovery|full)$ ]]
 }
 
 perfil_rango() {
-  case $1 in
-    core) echo 1 ;; recovery) echo 2 ;; full) echo 3 ;; *) echo 0 ;;
+  case $(perfil_normalizar "$1") in
+    survive) echo 1 ;; core) echo 2 ;; recovery) echo 3 ;; full) echo 4 ;; *) echo 0 ;;
   esac
 }
 
@@ -32,7 +41,8 @@ perfil_cargar() {
       ARCA_PERFIL=$PERFIL_POR_DEFECTO
     fi
   fi
-  perfil_valido "$ARCA_PERFIL" || die "Perfil inválido: '$ARCA_PERFIL' (core, recovery o full)"
+  perfil_valido "$ARCA_PERFIL" || die "Perfil inválido: '$ARCA_PERFIL' (survive, core, recovery o full)"
+  ARCA_PERFIL=$(perfil_normalizar "$ARCA_PERFIL")
   if [[ -z $ARCA_EXTRAS && -s "$ARCA_STATE_DIR/extras" ]]; then
     ARCA_EXTRAS=$(tr '\n' ' ' < "$ARCA_STATE_DIR/extras")
   fi
@@ -66,7 +76,7 @@ recurso_activo() {
 atributos_de_linea() {
   local linea=$1 p pr c resto
   read -r p pr c resto <<< "$linea"
-  if [[ $p =~ ^(core|recovery|full|extra:[a-z0-9-]+)$ && $pr =~ ^P[0-3]$ && -n $c && -n $resto ]]; then
+  if [[ $p =~ ^(survive|core|recovery|full|extra:[a-z0-9-]+)$ && $pr =~ ^P[0-3]$ && -n $c && -n $resto ]]; then
     printf '%s\t%s\t%s\t%s\n' "$p" "$pr" "$c" "$resto"
   else
     printf 'full\tP2\tgeneral\t%s\n' "$linea"
@@ -76,6 +86,6 @@ atributos_de_linea() {
 # Nombre legible de una prioridad.
 prioridad_nombre() {
   case $1 in
-    P0) echo "P0 esencial" ;; P1) echo "P1 muy importante" ;; P2) echo "P2 complementario" ;; P3) echo "P3 cultural/opcional" ;; *) echo "$1" ;;
+    P0) echo "P0 vivir 15 años" ;; P1) echo "P1 oficios" ;; P2) echo "P2 legado" ;; P3) echo "P3 cultura" ;; *) echo "$1" ;;
   esac
 }

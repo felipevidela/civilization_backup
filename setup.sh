@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # setup.sh — instalación completa de arca por fases, reanudable.
 #
-# Uso: sudo ./setup.sh [--profile core|recovery|full] [--extra NOMBRE]... [--dry-run] [--from N] [--only N]
-#   --profile P  perfil de instalación: core (≈60 GB), recovery (≈255 GB) o full (≈490 GB, por defecto).
+# Uso: sudo ./setup.sh [--profile survive|core|recovery|full] [--extra NOMBRE]... [--dry-run] [--from N] [--only N]
+#   --profile P  perfil: survive (≈55 GB, vivir 15 años; alias 15y), core (≈63 GB),
+#                recovery (≈255 GB) o full (≈480 GB, por defecto). survive ⊂ core ⊂ recovery ⊂ full.
 #                Se recuerda en /srv/respaldo/.arca/profile; sin --profile se reutiliza el guardado.
-#   --extra X    activa un extra opcional (gutenberg-full, stackoverflow-full, wikipedia-fr...). Repetible.
+#   --extra X    activa un extra opcional: cono-sur (Chile y vecinos), gutenberg-full,
+#                stackoverflow-full, wikipedia-fr, wikipedia-en-nopic. Repetible.
 #   --dry-run    muestra qué haría y cuánto pesaría, sin descargar ni instalar
 #   --from N     vuelve a ejecutar desde la fase N (borra las marcas de N en adelante)
 #   --only N     ejecuta solo la fase N
@@ -18,7 +20,7 @@ ARCA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESPALDO="${RESPALDO:-/srv/respaldo}"
 DRY_RUN=0; DESDE=""; SOLO=""; ARCA_PERFIL="${ARCA_PERFIL:-}"; ARCA_EXTRAS="${ARCA_EXTRAS:-}"
 
-uso() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+uso() { sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 while (( $# )); do
   case $1 in
     --dry-run) DRY_RUN=1 ;;

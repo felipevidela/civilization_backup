@@ -23,14 +23,33 @@ docs_start_here_es() {
 Este archivo está en texto plano a propósito: se puede leer con cualquier computador,
 en cualquier sistema, sin programas especiales. Empieza aquí.
 
+================================================================================
+  LO PRIMERO, HOY (antes de leer el resto)
+================================================================================
+  1. AGUA: hervir 1 minuto (3 sobre 2.000 m) o clorar y esperar 30 min. Nunca beber
+     de fuente dudosa sin tratar.            -> printkit/fichas/01, manuales/agua/
+  2. HERIDA QUE SANGRA: presión directa fuerte 10 minutos, sin levantar el paño.
+                                             -> printkit/fichas/05
+  3. LETRINA: a más de 30 metros de cualquier pozo o vertiente, y aguas abajo.
+                                             -> printkit/fichas/03
+  4. IMPRIME printkit/ (20 fichas de una hoja). El PC dura 5 a 8 años; el papel, más.
+                                             -> printkit/README.md
+  5. COPIA este disco a otro y verifícalo: check.sh --scrub, backup.sh --mirror.
+     Tres copias, dos medios, una fuera de la casa.   -> printkit/fichas/18
+  6. LA IA PUEDE MENTIR. Para dosis, partos, venenos o agua: abre el PDF que cita.
+                                             -> printkit/fichas/20
+
 1. QUÉ ES ARCA
-   Una biblioteca fuera de línea que reúne el conocimiento práctico para pasar de la
-   supervivencia a una sociedad técnica: medicina, agua y saneamiento, agricultura,
-   manufactura, materiales, energía, electricidad, construcción, telecomunicaciones,
-   ciencia, matemáticas, computación e instituciones. Inventario actual:
+   Una biblioteca fuera de línea para que una familia o un pueblo chico viva los
+   próximos quince años sin red: agua y saneamiento, medicina, comida y huerta,
+   sismo y clima, reparación, oficios (taller, electricidad, construcción,
+   telecomunicaciones) y, como legado, ciencia, industria y cultura.
+   El PC y el disco se van a morir: por eso lo primero es el papel (printkit/) y
+   copiar y verificar este disco cada año. Inventario actual:
    ${inv%%|*} enciclopedias y colecciones (ZIM), $(cut -d'|' -f2 <<< "$inv") manuales y libros (PDF/EPUB), ${inv##*|} mapas.
 
 2. CÓMO ESTÁ ORGANIZADO (carpetas en la raíz de este disco)
+   printkit/     20 fichas de una hoja para imprimir HOY, y la portada en papel.
    zim/          Wikipedia y decenas de colecciones. Se leen con Kiwix (ver punto 4).
    manuales/     PDF por dominio: medicina/ (actual, austera, referencia, historica),
                  agua/, agricultura/, manufactura/, materiales/, energia/, electricidad/,
@@ -149,14 +168,30 @@ docs_start_here_en() {
 This file is deliberately plain text: any computer, any system, no special software.
 Start here.
 
+================================================================================
+  FIRST THINGS, TODAY (before reading the rest)
+================================================================================
+  1. WATER: boil for 1 minute (3 above 2,000 m) or chlorinate and wait 30 min.
+                                             -> printkit/fichas/01, manuales/agua/
+  2. BLEEDING WOUND: firm direct pressure for 10 minutes, do not lift the cloth.
+                                             -> printkit/fichas/05
+  3. LATRINE: more than 30 m from any well or spring, and downhill from it.
+                                             -> printkit/fichas/03
+  4. PRINT printkit/ (20 one-page cards). The PC lasts 5-8 years; paper lasts longer.
+  5. COPY this disk and verify it: check.sh --scrub, backup.sh --mirror.
+     Three copies, two media, one off-site.  -> printkit/fichas/18
+  6. THE AI CAN LIE. For doses, childbirth, poisons or water: open the PDF it cites.
+
 1. WHAT ARCA IS
-   An offline library with the practical knowledge needed to go from survival to a
-   technical society: medicine, water and sanitation, agriculture, manufacturing,
-   materials, energy, electricity, construction, telecommunications, science, mathematics,
-   computing and institutions. Current inventory: ${inv%%|*} encyclopedias and collections
+   An offline library meant to keep a family or a small town alive for the next fifteen
+   years without a network: water and sanitation, medicine, food and gardening,
+   earthquakes and weather, repair, trades (workshop, electricity, construction,
+   telecommunications) and, as legacy, science, industry and culture. The cards in
+   printkit/ are in Spanish. Current inventory: ${inv%%|*} encyclopedias and collections
    (ZIM), $(cut -d'|' -f2 <<< "$inv") manuals and books (PDF/EPUB), ${inv##*|} maps.
 
 2. HOW IT IS ORGANIZED (folders at the root of this disk)
+   printkit/     20 one-page cards to print today (Spanish), plus the paper cover page.
    zim/          Wikipedia and dozens of collections, read with Kiwix (see 4).
    manuales/     PDFs by domain: medicina/ (actual=current, austera=low-resource,
                  referencia, historica), agua/ (water), agricultura/, manufactura/,
@@ -257,6 +292,15 @@ Start here.
 TXT
 }
 
+# Copia el print-kit del repositorio al disco. Es lo primero que hay que imprimir.
+printkit_instalar() {
+  [[ -d "$ARCA_DIR/printkit" ]] || return 0
+  mkdir -p "$RESPALDO/printkit"
+  cp -a "$ARCA_DIR/printkit/." "$RESPALDO/printkit/"
+  chown_respaldo "$RESPALDO/printkit"
+  return 0
+}
+
 # Genera START_HERE*.txt, START_HERE.html y copia docs/ al disco.
 docs_generar() {
   docs_start_here_es > "$RESPALDO/START_HERE_ES.txt"
@@ -279,6 +323,7 @@ docs_generar() {
   } > "$RESPALDO/START_HERE.html"
   mkdir -p "$RESPALDO/docs"
   cp "$ARCA_DIR"/docs/*.md "$RESPALDO/docs/"
+  printkit_instalar
   chown_respaldo "$RESPALDO"/START_HERE* "$RESPALDO/docs"
 }
 
@@ -289,6 +334,7 @@ bootstrap_generar() {
   mkdir -p "$b/docs"
   cp "$RESPALDO"/START_HERE*.txt "$RESPALDO/START_HERE.html" "$b/" 2>/dev/null || true
   cp "$ARCA_DIR"/docs/*.md "$b/docs/"
+  [[ -d "$ARCA_DIR/printkit" ]] && { mkdir -p "$b/printkit"; cp -a "$ARCA_DIR/printkit/." "$b/printkit/"; }
   [[ -s $MANIFEST_OUT ]] && cp "$MANIFEST_OUT" "$b/MANIFEST.tsv"
   # Código fuente de ARCA (sin .git ni logs).
   tar --transform "s#^$(basename "$ARCA_DIR")#arca#" -C "$(dirname "$ARCA_DIR")" --exclude='.git' --exclude='logs' \

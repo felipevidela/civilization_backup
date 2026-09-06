@@ -80,7 +80,7 @@ manuals_read() {
   local c1 c2 c3 c4 c5 p pr cat d u desc lic
   sed -E '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$MANUALS_CONF" | while IFS='|' read -r c1 c2 c3 c4 c5; do
     c1=$(_trim "$c1"); c2=$(_trim "$c2"); c3=$(_trim "$c3"); c4=$(_trim "$c4"); c5=$(_trim "$c5")
-    if [[ $c1 =~ ^(core|recovery|full|extra:[a-z0-9-]+)[[:space:]]+P[0-3][[:space:]]+[a-z-]+$ ]]; then
+    if [[ $c1 =~ ^(survive|core|recovery|full|extra:[a-z0-9-]+)[[:space:]]+P[0-3][[:space:]]+[a-z-]+$ ]]; then
       read -r p pr cat <<< "$c1"; d=$c2; u=$c3; desc=$c4; lic=$c5
     else
       p=full; pr=P2; cat=general; d=$c1; u=$c2; desc=$c3; lic=$c4

@@ -122,6 +122,23 @@ echo
 echo "Copias de seguridad:"
 echo "  último espejo:   $(fecha_de "$ARCA_STATE_DIR/ultimo-mirror") $(sed -n 2p "$ARCA_STATE_DIR/ultimo-mirror" 2>/dev/null)"
 echo "  último snapshot: $(fecha_de "$ARCA_STATE_DIR/ultimo-snapshot") $(sed -n 2p "$ARCA_STATE_DIR/ultimo-snapshot" 2>/dev/null)"
+# Avisos operativos: lo que hace que el archivo sobreviva al disco.
+avisos=()
+if [[ -s "$ARCA_STATE_DIR/ultimo-scrub" ]]; then
+  dias=$(( ( $(date +%s) - $(date -d "$(head -1 "$ARCA_STATE_DIR/ultimo-scrub")" +%s 2>/dev/null || echo 0) ) / 86400 ))
+  (( dias > 365 )) && avisos+=("Hace $dias días del último scrub: sudo $ARCA_DIR/check.sh --scrub")
+else
+  avisos+=("Nunca se verificó el disco: sudo $ARCA_DIR/check.sh --scrub")
+fi
+[[ -d "$RESPALDO/printkit" ]] || avisos+=("Falta printkit/ en el disco: sudo $ARCA_DIR/setup.sh --only 10")
+[[ -s "$ARCA_STATE_DIR/ultimo-mirror" || -s "$ARCA_STATE_DIR/ultimo-snapshot" ]] || avisos+=("Nunca se copió a otro disco: sudo $ARCA_DIR/backup.sh --mirror /ruta")
+if (( ${#avisos[@]} )); then
+  echo
+  echo "Avisos:"
+  printf '  ! %s\n' "${avisos[@]}"
+  echo "  ! ¿Imprimiste printkit/? El disco dura 5 a 8 años; el papel, más."
+fi
+
 echo
 echo "Servicios:"
 if systemctl is-active --quiet kiwix.service 2>/dev/null; then
