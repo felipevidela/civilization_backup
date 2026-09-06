@@ -53,15 +53,51 @@ failed_del() {
   mv "$FAILED_TXT.tmp" "$FAILED_TXT"
 }
 
-# Lee manuals.conf: "destino<TAB>url<TAB>descripción" por línea activa.
-manuals_read() {
-  sed -E '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$MANUALS_CONF" | while IFS='|' read -r d u desc; do
-    d=$(sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' <<< "$d")
-    u=$(sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' <<< "$u")
-    desc=$(sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' <<< "$desc")
-    [[ -n $d && -n $u ]] || continue
-    printf '%s\t%s\t%s\n' "$d" "$u" "$desc"
+_trim() { sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' <<< "$1"; }
+
+# Migración: si un manual ya estaba descargado en la ubicación antigua (antes de las carpetas
+# medicina/actual, agua/, manufactura/, ...), se mueve a la nueva sin volver a bajarlo.
+migrar_ruta_antigua() {
+  local nuevo=$1 base antiguo carpeta
+  [[ $nuevo == */ ]] && return 0
+  base=$(basename "$nuevo")
+  [[ -e "$RESPALDO/$nuevo" ]] && return 0
+  for carpeta in manuales/medicina manuales/ingenieria manuales/supervivencia manuales/fisica; do
+    antiguo="$RESPALDO/$carpeta/$base"
+    if [[ -s $antiguo && "$carpeta/$base" != "$nuevo" ]]; then
+      mkdir -p "$(dirname "$RESPALDO/$nuevo")"
+      mv "$antiguo" "$RESPALDO/$nuevo"
+      log_info "Migrado: $carpeta/$base → $nuevo"
+      return 0
+    fi
   done
+}
+
+# Lee manuals.conf: "perfil<TAB>prioridad<TAB>categoria<TAB>destino<TAB>url<TAB>descripción<TAB>licencia"
+# por línea no comentada. Formato: "perfil prio cat | destino | url | desc [| licencia]";
+# sin atributos ("destino | url | desc") se asume full P2 general.
+manuals_read() {
+  local c1 c2 c3 c4 c5 p pr cat d u desc lic
+  sed -E '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$MANUALS_CONF" | while IFS='|' read -r c1 c2 c3 c4 c5; do
+    c1=$(_trim "$c1"); c2=$(_trim "$c2"); c3=$(_trim "$c3"); c4=$(_trim "$c4"); c5=$(_trim "$c5")
+    if [[ $c1 =~ ^(core|recovery|full|extra:[a-z0-9-]+)[[:space:]]+P[0-3][[:space:]]+[a-z-]+$ ]]; then
+      read -r p pr cat <<< "$c1"; d=$c2; u=$c3; desc=$c4; lic=$c5
+    else
+      p=full; pr=P2; cat=general; d=$c1; u=$c2; desc=$c3; lic=$c4
+    fi
+    [[ -n $d && -n $u ]] || continue
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$p" "$pr" "$cat" "$d" "$u" "$desc" "${lic:-unknown}"
+  done
+}
+
+# ¿El software con clave $1 (deb, kiwix, organicmaps, mapas, iso, llm, llm7b, ia, repo, source)
+# entra en el perfil actual? Se define en SOFT_PERFILES de software.conf.
+soft_activo() {
+  local clave=$1 par
+  for par in ${SOFT_PERFILES:-}; do
+    [[ ${par%%:*} == "$clave" ]] && { recurso_activo "${par#*:}"; return; }
+  done
+  return 0
 }
 
 software_load() {
@@ -81,29 +117,32 @@ ip_local() {
 
 # Imprime la tabla de estimar_pendiente en formato legible.
 tabla_imprimir() {
-  local t a b e
-  printf '\n%-9s %-62s %10s  %s\n' "TIPO" "ARCHIVO" "TAMAÑO" "ESTADO"
-  while IFS=$'\t' read -r t a b e; do
+  local t a b e pr cat p
+  printf '\n%-8s %-3s %-13s %-56s %10s  %s\n' "TIPO" "PRI" "CATEGORÍA" "ARCHIVO" "TAMAÑO" "ESTADO"
+  while IFS=$'\t' read -r t a b e pr cat p; do
     [[ -n $t ]] || continue
-    printf '%-9s %-62s %10s  %s\n' "$t" "${a:0:62}" "$(human "$b")" "$e"
+    printf '%-8s %-3s %-13s %-56s %10s  %s\n' "$t" "$pr" "${cat:0:13}" "${a:0:56}" "$(human "$b")" "$e"
   done <<< "$1"
 }
 
-# Imprime "categoría<TAB>nombre<TAB>bytes<TAB>estado" por ítem pendiente o instalado.
+# Imprime "tipo<TAB>nombre<TAB>bytes<TAB>estado<TAB>prioridad<TAB>categoria<TAB>perfil" por
+# recurso del perfil activo (pendiente o instalado). Los inactivos no aparecen.
 estimar_pendiente() {
-  local carpeta prefijo nombre bytes estado
+  local p pr cat carpeta prefijo nombre bytes estado
   # ZIM
-  while IFS=$'\t' read -r carpeta prefijo; do
+  while IFS=$'\t' read -r p pr cat carpeta prefijo; do
+    recurso_activo "$p" || continue
     if ! nombre=$(kiwix_latest "$carpeta" "$prefijo"); then
-      printf 'zim\t%s/%s\t0\tNO EXISTE en el servidor\n' "$carpeta" "$prefijo"; continue
+      printf 'zim\t%s/%s\t0\tNO EXISTE en el servidor\t%s\t%s\t%s\n' "$carpeta" "$prefijo" "$pr" "$cat" "$p"; continue
     fi
     bytes=$(kiwix_listed_size "$carpeta" "$nombre" || echo 0)
     if zim_installed_ok "$prefijo" "$nombre" "$ZIM_DIR"; then estado=instalado; else estado=pendiente; fi
-    printf 'zim\t%s\t%s\t%s\n' "$nombre" "$bytes" "$estado"
+    printf 'zim\t%s\t%s\t%s\t%s\t%s\t%s\n' "$nombre" "$bytes" "$estado" "$pr" "$cat" "$p"
   done < <(packs_read "$PACKS_CONF")
   # Manuales
-  local d u desc ruta
-  while IFS=$'\t' read -r d u desc; do
+  local d u desc lic ruta
+  while IFS=$'\t' read -r p pr cat d u desc lic; do
+    recurso_activo "$p" || continue
     ruta="$RESPALDO/$d"
     if [[ $d == */ ]]; then
       [[ -n $(find "$ruta" -type f -print -quit 2>/dev/null) ]] && estado=instalado || estado=pendiente
@@ -116,48 +155,97 @@ estimar_pendiente() {
       bytes=$(fetch_resource_size "$u" 2>/dev/null || echo 0)
     fi
     [[ $d == */ ]] && d="$d${u##*/}"
-    printf 'manual\t%s\t%s\t%s\n' "$d" "$bytes" "$estado"
+    printf 'manual\t%s\t%s\t%s\t%s\t%s\t%s\n' "$d" "$bytes" "$estado" "$pr" "$cat" "$p"
   done < <(manuals_read)
   # Mapas
   software_load
-  if [[ ${MAPAS:-1} == 1 ]]; then
+  if [[ ${MAPAS:-1} == 1 ]] && soft_activo mapas; then
     local id s
     while IFS=$'\t' read -r id s; do
       [[ -s "$RESPALDO/mapas/$id.mwm" ]] && estado=instalado || estado=pendiente
-      printf 'mapa\t%s.mwm\t%s\t%s\n' "$id" "$s" "$estado"
+      printf 'mapa\t%s.mwm\t%s\t%s\tP0\tmapas\tcore\n' "$id" "$s" "$estado"
     done < <(mapas_regiones)
   fi
   # Software
   local dir_soft="$RESPALDO/software"
-  [[ ${UBUNTU_ISO:-1} == 1 ]] && {
+  if [[ ${UBUNTU_ISO:-1} == 1 ]] && soft_activo iso; then
     local iso; iso=$(iso_ultima_linea | awk '{print $2}' | tr -d '*')
     if [[ -n $iso ]]; then
       [[ -s "$dir_soft/iso/$iso" ]] && estado=instalado || estado=pendiente
       bytes=$(fetch_size "$UBUNTU_ISO_URL_BASE/$iso" 2>/dev/null || echo 6500000000)
-      printf 'software\t%s\t%s\t%s\n' "$iso" "$bytes" "$estado"
+      printf 'software\t%s\t%s\t%s\tP1\tsoftware\trecovery\n' "$iso" "$bytes" "$estado"
     fi
-  }
-  [[ ${LLM_ENABLED:-1} == 1 ]] && {
-    local m; m=$(hf_modelo_info 2>/dev/null || true)
-    bytes=${m%%$'\t'*}; [[ $bytes =~ ^[0-9]+$ ]] || bytes=4700000000
-    [[ -s "$dir_soft/llm/modelos/$LLM_MODEL_FILE" ]] && estado=instalado || estado=pendiente
-    printf 'software\t%s\t%s\t%s\n' "$LLM_MODEL_FILE" "$bytes" "$estado"
+  fi
+  if [[ ${LLM_ENABLED:-1} == 1 ]] && soft_activo llm; then
+    local m
+    if soft_activo llm7b; then
+      m=$(hf_modelo_info 2>/dev/null || true)
+      bytes=${m%%$'\t'*}; [[ $bytes =~ ^[0-9]+$ ]] || bytes=4700000000
+      [[ -s "$dir_soft/llm/modelos/$LLM_MODEL_FILE" ]] && estado=instalado || estado=pendiente
+      printf 'software\t%s\t%s\t%s\tP1\tia\trecovery\n' "$LLM_MODEL_FILE" "$bytes" "$estado"
+    fi
     if [[ -n ${LLM_RAPIDO_FILE:-} ]]; then
       m=$(hf_modelo_info "${LLM_RAPIDO_REPO:-$LLM_MODEL_REPO}" "$LLM_RAPIDO_FILE" 2>/dev/null || true)
       bytes=${m%%$'\t'*}; [[ $bytes =~ ^[0-9]+$ ]] || bytes=2000000000
       [[ -s "$dir_soft/llm/modelos/$LLM_RAPIDO_FILE" ]] && estado=instalado || estado=pendiente
-      printf 'software\t%s\t%s\t%s\n' "$LLM_RAPIDO_FILE" "$bytes" "$estado"
+      printf 'software\t%s\t%s\t%s\tP1\tia\tcore\n' "$LLM_RAPIDO_FILE" "$bytes" "$estado"
     fi
     [[ -x "$dir_soft/llm/llama.cpp/build/bin/llama-cli" ]] && estado=instalado || estado=pendiente
-    printf 'software\tllama.cpp (fuentes+binarios)\t800000000\t%s\n' "$estado"
-  }
-  [[ ${IA_ENABLED:-1} == 1 ]] && {
+    printf 'software\tllama.cpp (fuentes+binarios)\t800000000\t%s\tP1\tia\tcore\n' "$estado"
+  fi
+  if [[ ${IA_ENABLED:-1} == 1 ]] && soft_activo ia; then
     [[ -d "$dir_soft/ia/codigo" ]] && estado=instalado || estado=pendiente
-    printf 'software\tIA desde cero (código + ruedas Python)\t400000000\t%s\n' "$estado"
-  }
+    printf 'software\tIA desde cero (código + ruedas Python)\t400000000\t%s\tP1\tia\trecovery\n' "$estado"
+  fi
   [[ -d "$dir_soft/deb" ]] && estado=instalado || estado=pendiente
-  printf 'software\tpaquetes .deb con dependencias\t1500000000\t%s\n' "$estado"
-  printf 'software\tAppImage, APKs, kiwix-tools\t450000000\t%s\n' "$([[ -d $dir_soft/kiwix ]] && echo instalado || echo pendiente)"
+  printf 'software\tpaquetes .deb con dependencias\t1500000000\t%s\tP0\tsoftware\tcore\n' "$estado"
+  printf 'software\tAppImage, APKs, kiwix-tools\t450000000\t%s\tP0\tsoftware\tcore\n' "$([[ -d $dir_soft/kiwix ]] && echo instalado || echo pendiente)"
+}
+
+# Recursos de packs/manuals que NO entran en el perfil actual: "tipo<TAB>nombre<TAB>perfil<TAB>tamaño_aprox".
+listar_desactivados() {
+  local p pr cat carpeta prefijo d u desc lic linea
+  while IFS=$'\t' read -r p pr cat carpeta prefijo; do
+    recurso_activo "$p" && continue
+    linea=$(grep -F "$carpeta/$prefijo" "$PACKS_CONF" | head -1 | sed -E 's/.*#[[:space:]]*//')
+    printf 'zim\t%s\t%s\t%s\n' "$prefijo" "$p" "${linea:-?}"
+  done < <(packs_read "$PACKS_CONF")
+  while IFS=$'\t' read -r p pr cat d u desc lic; do
+    recurso_activo "$p" && continue
+    printf 'manual\t%s\t%s\t%s\n' "$d" "$p" "$desc"
+  done < <(manuals_read)
+}
+
+# Resumen del ensayo/fase 0 a partir de la tabla de estimar_pendiente.
+resumen_estimacion() {
+  local tabla=$1 libre=$2
+  local pendiente instalado necesario
+  pendiente=$(awk -F'\t' '$4=="pendiente"{s+=$3} END{printf "%d", s}' <<< "$tabla")
+  instalado=$(awk -F'\t' '$4=="instalado"{s+=$3} END{printf "%d", s}' <<< "$tabla")
+  necesario=$(( pendiente + pendiente * MARGEN_PCT / 100 ))
+  echo
+  echo "Perfil: $ARCA_PERFIL${ARCA_EXTRAS:+  (extras: $ARCA_EXTRAS)}"
+  echo "Contenido del perfil por prioridad (instalado + pendiente):"
+  local pr
+  for pr in P0 P1 P2 P3; do
+    printf '  %-22s %10s\n' "$(prioridad_nombre "$pr")" "$(human "$(awk -F'\t' -v p="$pr" '$5==p{s+=$3} END{printf "%d", s}' <<< "$tabla")")"
+  done
+  echo "Recursos más pesados:"
+  sort -t$'\t' -k3,3rn <<< "$tabla" | head -8 | while IFS=$'\t' read -r _ n b e _; do printf '  %-62s %10s  %s\n' "${n:0:62}" "$(human "$b")" "$e"; done
+  printf '\nYa en disco: %s   Pendiente de descargar: %s   Con %d%% de margen: %s\n' \
+    "$(human "$instalado")" "$(human "$pendiente")" "$MARGEN_PCT" "$(human "$necesario")"
+  if (( libre >= pendiente )); then
+    printf 'Libre ahora en %s: %s   Libre estimado tras instalar: %s\n' "$RESPALDO" "$(human "$libre")" "$(human $(( libre - pendiente )))"
+  else
+    printf 'Libre ahora en %s: %s   Faltarían %s incluso sin margen\n' "$RESPALDO" "$(human "$libre")" "$(human $(( pendiente - libre )))"
+  fi
+  local des; des=$(listar_desactivados)
+  if [[ -n $des ]]; then
+    echo
+    echo "Fuera de este perfil ($(grep -c . <<< "$des") recursos; se activan con --profile mayor o --extra <nombre>):"
+    grep -P '\textra:' <<< "$des" | while IFS=$'\t' read -r t n p info; do printf '  --extra %-20s %-45s %s\n' "${p#extra:}" "$n" "${info:0:50}"; done
+    grep -vP '\textra:' <<< "$des" | awk -F'\t' '{c[$3]++} END{for (k in c) printf "  perfil %-9s %d recursos\n", k, c[k]}'
+  fi
 }
 
 # ---------------------------------------------------------------- fase 0
@@ -198,24 +286,22 @@ fase_0() {
   software_load
   MARGEN_PCT=${MARGEN_ESPACIO_PCT:-$MARGEN_PCT}
   kiwix_cache_clear
-  log_info "Calculando el espacio necesario (consulta tamaños reales al servidor, puede tardar un par de minutos)..."
+  log_info "Calculando el espacio necesario del perfil '$ARCA_PERFIL' (consulta tamaños reales al servidor, puede tardar unos minutos)..."
   local tabla; tabla=$(estimar_pendiente)
-  local pendiente instalado
+  local pendiente
   pendiente=$(awk -F'\t' '$4=="pendiente"{s+=$3} END{printf "%d", s}' <<< "$tabla")
-  instalado=$(awk -F'\t' '$4=="instalado"{s+=$3} END{printf "%d", s}' <<< "$tabla")
   local necesario=$(( pendiente + pendiente * MARGEN_PCT / 100 ))
   local libre; libre=$(space_free_bytes "$RESPALDO")
 
   tabla_imprimir "$tabla"
-  printf '\nYa en disco: %s   Pendiente de descargar: %s   Con %d%% de margen: %s   Libre en %s: %s\n' \
-    "$(human "$instalado")" "$(human "$pendiente")" "$MARGEN_PCT" "$(human "$necesario")" "$RESPALDO" "$(human "$libre")"
+  resumen_estimacion "$tabla" "$libre"
 
   grep -q 'NO EXISTE' <<< "$tabla" && log_warn "Hay entradas de packs.conf que no existen en el servidor (ver tabla); se omitirán."
 
   if (( necesario > libre )); then
     local deficit=$(( necesario - libre ))
     log_error "No cabe: faltan $(human "$deficit")."
-    echo "Comenta en $PACKS_CONF (añade # al inicio) alguna de estas líneas hasta liberar $(human "$deficit"):"
+    echo "Elige un perfil menor (--profile recovery / core), quita extras, o comenta en $PACKS_CONF alguna de estas líneas hasta liberar $(human "$deficit"):"
     awk -F'\t' '$1=="zim" && $4=="pendiente"{print $3"\t"$2}' <<< "$tabla" | sort -rn | head -8 \
       | while IFS=$'\t' read -r b n; do printf '   %-60s %s\n' "$n" "$(human "$b")"; done
     return 1
@@ -323,8 +409,9 @@ fase_3() {
   software_load
   zim_json_init
   kiwix_cache_clear
-  local carpeta prefijo nombre pendientes=() ya=0
-  while IFS=$'\t' read -r carpeta prefijo; do
+  local p pr cat carpeta prefijo nombre pendientes=() ya=0 fuera=0
+  while IFS=$'\t' read -r p pr cat carpeta prefijo; do
+    recurso_activo "$p" || { fuera=$((fuera + 1)); continue; }
     if ! nombre=$(kiwix_latest "$carpeta" "$prefijo"); then
       failed_add "zim:$carpeta/$prefijo" "no existe en download.kiwix.org/zim/$carpeta/"; continue
     fi
@@ -333,7 +420,7 @@ fase_3() {
     fi
     pendientes+=("$carpeta"$'\t'"$prefijo"$'\t'"$nombre")
   done < <(packs_read "$PACKS_CONF")
-  log_info "$ya ZIM ya al día, ${#pendientes[@]} por descargar (máximo $MAX_DESCARGAS a la vez)."
+  log_info "Perfil $ARCA_PERFIL: $ya ZIM ya al día, ${#pendientes[@]} por descargar (máximo $MAX_DESCARGAS a la vez), $fuera fuera del perfil."
 
   local p res
   for p in "${pendientes[@]}"; do
@@ -370,9 +457,11 @@ fase_3() {
 fase_4() {
   log_titulo "Fase 4: manuales y recursos"
   json_init "$MANUALS_JSON"
-  local d u desc ruta clave bytes existe remoto
-  while IFS=$'\t' read -r d u desc; do
+  local p pr cat d u desc lic ruta clave bytes existe remoto
+  while IFS=$'\t' read -r p pr cat d u desc lic; do
+    recurso_activo "$p" || continue
     ruta="$RESPALDO/$d"; clave="manual:$d"
+    migrar_ruta_antigua "$d"
     [[ $d == */ ]] && clave="manual:$d${u##*/}"
     if [[ $d == */ ]]; then
       existe=0; [[ -n $(find "$ruta" -type f -print -quit 2>/dev/null) ]] && existe=1
@@ -435,7 +524,7 @@ mapas_servidor() {
 fase_5() {
   log_titulo "Fase 5: mapas de Organic Maps"
   software_load
-  [[ ${MAPAS:-1} == 1 ]] || { log_info "Mapas desactivados en software.conf."; return 0; }
+  if [[ ${MAPAS:-1} != 1 ]] || ! soft_activo mapas; then log_info "Mapas desactivados (software.conf o perfil)."; return 0; fi
   local dir="$RESPALDO/mapas" v servidor id s dest
   mkdir -p "$dir"
   v=$(mapas_version) || { failed_add "mapas" "no se pudo leer countries.json"; return 0; }
@@ -568,7 +657,7 @@ _soft_kiwix() {
 }
 
 _soft_organicmaps() {
-  [[ ${ORGANICMAPS_APK:-1} == 1 ]] || return 0
+  [[ ${ORGANICMAPS_APK:-1} == 1 ]] && soft_activo organicmaps || return 0
   local dir="$RESPALDO/software/organicmaps" info tag nombre url
   mkdir -p "$dir"
   info=$(fetch_github_asset organicmaps/organicmaps 'web-release\.apk$') || true
@@ -585,7 +674,7 @@ _soft_organicmaps() {
 }
 
 _soft_iso() {
-  [[ ${UBUNTU_ISO:-1} == 1 ]] || return 0
+  [[ ${UBUNTU_ISO:-1} == 1 ]] && soft_activo iso || return 0
   local dir="$RESPALDO/software/iso" linea sha nombre bytes
   mkdir -p "$dir"
   linea=$(iso_ultima_linea)
@@ -605,7 +694,7 @@ _soft_iso() {
 }
 
 _soft_llm() {
-  [[ ${LLM_ENABLED:-1} == 1 ]] || { log_info "LLM desactivado en software.conf."; return 0; }
+  if [[ ${LLM_ENABLED:-1} != 1 ]] || ! soft_activo llm; then log_info "LLM desactivado (software.conf o perfil)."; return 0; fi
   local dir="$RESPALDO/software/llm" src ref
   mkdir -p "$dir/modelos"
   src="$dir/llama.cpp"
@@ -623,7 +712,7 @@ _soft_llm() {
       failed_add "software:llama.cpp" "clonado o compilación fallida (ver log)"
     fi
   fi
-  _soft_llm_modelo "$LLM_MODEL_REPO" "$LLM_MODEL_FILE" "$dir/modelos"
+  soft_activo llm7b && _soft_llm_modelo "$LLM_MODEL_REPO" "$LLM_MODEL_FILE" "$dir/modelos"
   [[ -n ${LLM_RAPIDO_FILE:-} ]] && _soft_llm_modelo "${LLM_RAPIDO_REPO:-$LLM_MODEL_REPO}" "$LLM_RAPIDO_FILE" "$dir/modelos"
   cat > "$dir/chat.sh" <<CHAT
 #!/usr/bin/env bash
@@ -633,6 +722,7 @@ _soft_llm() {
 set -euo pipefail
 DIR="\$(cd "\$(dirname "\$0")" && pwd)"
 MODELO="\$DIR/modelos/$LLM_MODEL_FILE"
+[[ -s "\$MODELO" ]] || MODELO="\$DIR/modelos/${LLM_RAPIDO_FILE:-$LLM_MODEL_FILE}"
 if [[ "\${1:-}" == "--rapido" ]]; then MODELO="\$DIR/modelos/${LLM_RAPIDO_FILE:-$LLM_MODEL_FILE}"; shift; fi
 [[ -s "\$MODELO" ]] || { echo "No está el modelo: \$MODELO"; exit 1; }
 HILOS="\$(nproc)"
@@ -652,6 +742,7 @@ CHAT
 set -euo pipefail
 DIR="\$(cd "\$(dirname "\$0")" && pwd)"
 MODELO="\$DIR/modelos/$LLM_MODEL_FILE"
+[[ -s "\$MODELO" ]] || MODELO="\$DIR/modelos/${LLM_RAPIDO_FILE:-$LLM_MODEL_FILE}"
 if [[ "\${1:-}" == "--rapido" ]]; then MODELO="\$DIR/modelos/${LLM_RAPIDO_FILE:-$LLM_MODEL_FILE}"; shift; fi
 export ARCA_KIWIX_URL="\${ARCA_KIWIX_URL:-http://localhost:$PUERTO}"
 export ARCA_LLAMA_URL="\${ARCA_LLAMA_URL:-http://localhost:8081}"
@@ -666,7 +757,7 @@ PREG
 
 # Cómo crear una IA desde cero: guía, código de referencia y ruedas de Python.
 _soft_ia() {
-  [[ ${IA_ENABLED:-1} == 1 ]] || return 0
+  [[ ${IA_ENABLED:-1} == 1 ]] && soft_activo ia || return 0
   local dir="$RESPALDO/software/ia" repo nombre
   mkdir -p "$dir/codigo" "$dir/wheels"
   cp "$ARCA_DIR/docs/ia-desde-cero.md" "$dir/LEEME.md"
@@ -714,7 +805,7 @@ TXT
 }
 
 _soft_mirror_repo() {
-  [[ ${REPO_MIRROR:-1} == 1 ]] || return 0
+  [[ ${REPO_MIRROR:-1} == 1 ]] && soft_activo repo || return 0
   local dest="$RESPALDO/software/arca.git"
   if ! git -C "$ARCA_DIR" rev-parse --git-dir > /dev/null 2>&1; then
     log_warn "$ARCA_DIR no es un repositorio git; no se crea la copia software/arca.git."

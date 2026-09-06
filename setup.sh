@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # setup.sh — instalación completa de arca por fases, reanudable.
 #
-# Uso: sudo ./setup.sh [--dry-run] [--from N] [--only N]
-#   --dry-run   muestra qué haría y cuánto pesaría, sin descargar ni instalar
-#   --from N    vuelve a ejecutar desde la fase N (borra las marcas de N en adelante)
-#   --only N    ejecuta solo la fase N
+# Uso: sudo ./setup.sh [--profile core|recovery|full] [--extra NOMBRE]... [--dry-run] [--from N] [--only N]
+#   --profile P  perfil de instalación: core (≈60 GB), recovery (≈255 GB) o full (≈490 GB, por defecto).
+#                Se recuerda en /srv/respaldo/.arca/profile; sin --profile se reutiliza el guardado.
+#   --extra X    activa un extra opcional (gutenberg-full, stackoverflow-full, wikipedia-fr...). Repetible.
+#   --dry-run    muestra qué haría y cuánto pesaría, sin descargar ni instalar
+#   --from N     vuelve a ejecutar desde la fase N (borra las marcas de N en adelante)
+#   --only N     ejecuta solo la fase N
 #
 # Cada fase completada se anota en /srv/respaldo/.arca/state; al relanzar se saltan.
 # Fases: 0 prerrequisitos, 1 estructura, 2 paquetes, 3 ZIM, 4 manuales, 5 mapas,
@@ -13,12 +16,16 @@ set -euo pipefail
 
 ARCA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESPALDO="${RESPALDO:-/srv/respaldo}"
-DRY_RUN=0; DESDE=""; SOLO=""
+DRY_RUN=0; DESDE=""; SOLO=""; ARCA_PERFIL="${ARCA_PERFIL:-}"; ARCA_EXTRAS="${ARCA_EXTRAS:-}"
 
-uso() { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+uso() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 while (( $# )); do
   case $1 in
     --dry-run) DRY_RUN=1 ;;
+    --profile) ARCA_PERFIL=${2:-}; shift ;;
+    --profile=*) ARCA_PERFIL=${1#--profile=} ;;
+    --extra) ARCA_EXTRAS="$ARCA_EXTRAS ${2:-}"; shift ;;
+    --extra=*) ARCA_EXTRAS="$ARCA_EXTRAS ${1#--extra=}" ;;
     --from) DESDE=${2:-}; shift ;;
     --only) SOLO=${2:-}; shift ;;
     -h|--help) uso ;;
@@ -45,7 +52,7 @@ SOFTWARE_CONF="${SOFTWARE_CONF:-$ARCA_DIR/software.conf}"
 MODO_UPDATE=0
 export ARCA_DIR RESPALDO ARCA_STATE_DIR ARCA_TMP ARCA_LOG_DIR ARCA_LOG_COPY USUARIO PACKS_CONF MANUALS_CONF SOFTWARE_CONF DRY_RUN MODO_UPDATE
 
-for lib in log space state fetch kiwix readme phases; do
+for lib in log space state profiles fetch kiwix readme phases; do
   # shellcheck disable=SC1090
   source "$ARCA_DIR/lib/$lib.sh"
 done
@@ -53,6 +60,8 @@ done
 mkdir -p "$ARCA_STATE_DIR" "$ARCA_TMP" "$ARCA_LOG_DIR"
 log_init setup
 [[ -f $PACKS_CONF ]] || die "No existe $PACKS_CONF"
+perfil_cargar
+(( DRY_RUN )) || perfil_guardar
 
 if (( DRY_RUN )); then
   log_titulo "ENSAYO (--dry-run): no se descarga ni se instala nada"
@@ -61,12 +70,11 @@ if (( DRY_RUN )); then
     fase_0 || exit 1
   else
     # Solo la estimación de espacio.
+    software_load; MARGEN_PCT=${MARGEN_ESPACIO_PCT:-$MARGEN_PCT}
     kiwix_cache_clear
     tabla=$(estimar_pendiente)
     tabla_imprimir "$tabla"
-    pend=$(awk -F'\t' '$4=="pendiente"{s+=$3} END{printf "%d", s}' <<< "$tabla")
-    printf '\nPendiente de descargar: %s   Con %d%% de margen: %s   Libre en %s: %s\n' \
-      "$(human "$pend")" "$MARGEN_PCT" "$(human $(( pend + pend * MARGEN_PCT / 100 )))" "$RESPALDO" "$(human "$(space_free_bytes "$RESPALDO" || echo 0)")"
+    resumen_estimacion "$tabla" "$(space_free_bytes "$RESPALDO" || echo 0)"
   fi
   echo
   echo "Fases que se ejecutarían: 1 estructura, 2 paquetes apt/flatpak, 3 ZIM (aria2/torrent), 4 manuales,"
@@ -94,6 +102,6 @@ ejecutar_fase() {
   fi
 }
 
-log_info "arca setup — usuario $USUARIO, datos en $RESPALDO, log $ARCA_LOG_FILE"
+log_info "arca setup — perfil $ARCA_PERFIL${ARCA_EXTRAS:+ + extras:$ARCA_EXTRAS}, usuario $USUARIO, datos en $RESPALDO, log $ARCA_LOG_FILE"
 for n in 0 1 2 3 4 5 6 7 8 9 10 11; do ejecutar_fase "$n"; done
 log_ok "Instalación completa."

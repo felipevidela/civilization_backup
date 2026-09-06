@@ -34,10 +34,11 @@ SOFTWARE_CONF="${SOFTWARE_CONF:-$ARCA_DIR/software.conf}"
 DRY_RUN=0; MODO_UPDATE=1
 export ARCA_DIR RESPALDO ARCA_STATE_DIR ARCA_TMP ARCA_LOG_DIR ARCA_LOG_COPY USUARIO PACKS_CONF MANUALS_CONF SOFTWARE_CONF DRY_RUN MODO_UPDATE
 
-for lib in log space state fetch kiwix readme phases; do
+for lib in log space state profiles fetch kiwix readme phases; do
   # shellcheck disable=SC1090
   source "$ARCA_DIR/lib/$lib.sh"
 done
+perfil_cargar
 # Si el timer lo lanza (sin SUDO_USER), usa el propietario de /srv/respaldo/zim.
 [[ -n $USUARIO ]] || USUARIO=$(stat -c %U "$RESPALDO/zim" 2>/dev/null || echo root)
 export USUARIO
@@ -52,7 +53,9 @@ if (( CHECK )); then
   log_titulo "Novedades disponibles (sin descargar)"
   kiwix_cache_clear
   total=0
-  while IFS=$'\t' read -r carpeta prefijo; do
+  echo "  Perfil: $ARCA_PERFIL${ARCA_EXTRAS:+ (extras: $ARCA_EXTRAS)}"
+  while IFS=$'\t' read -r p _ _ carpeta prefijo; do
+    recurso_activo "$p" || continue
     nombre=$(kiwix_latest "$carpeta" "$prefijo" 2>/dev/null) || { printf '  %-55s NO EXISTE en el servidor\n' "$carpeta/$prefijo"; continue; }
     actual=$(zim_json_get "$prefijo" archivo || true)
     if [[ $actual == "$nombre" ]] && zim_installed_ok "$prefijo" "$nombre" "$ZIM_DIR"; then
@@ -63,7 +66,8 @@ if (( CHECK )); then
     fi
   done < <(packs_read "$PACKS_CONF")
   n=0
-  while IFS=$'\t' read -r d u _; do
+  while IFS=$'\t' read -r p _ _ d u _; do
+    recurso_activo "$p" || continue
     [[ $d == */ ]] && continue
     [[ -s "$RESPALDO/$d" ]] || { printf '  %-55s manual pendiente\n' "$d"; n=$((n + 1)); continue; }
     r=$(fetch_resource_size "$u" 2>/dev/null || echo ""); g=$(json_get "$MANUALS_JSON" "$u" bytes || true)

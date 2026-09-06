@@ -11,10 +11,11 @@ ARCA_STATE_DIR="$RESPALDO/.arca"; ARCA_TMP="${TMPDIR:-/tmp}/arca-check.$$"; ARCA
 PACKS_CONF="${PACKS_CONF:-$ARCA_DIR/packs.conf}"
 OFFLINE=0; [[ ${1:-} == --offline ]] && OFFLINE=1
 export ARCA_STATE_DIR ARCA_TMP ARCA_LOG_COPY
-for lib in log space fetch kiwix; do
+for lib in log space profiles fetch kiwix; do
   # shellcheck disable=SC1090
   source "$ARCA_DIR/lib/$lib.sh"
 done
+perfil_cargar
 mkdir -p "$ARCA_TMP"; trap 'rm -rf "$ARCA_TMP"' EXIT
 PUERTO=8080
 ip=$(hostname -I 2>/dev/null | awk '{print $1}')
@@ -50,9 +51,10 @@ else
 fi
 
 echo
-echo "== ZIM (instalado / disponible en el servidor) =="
+echo "== ZIM del perfil $ARCA_PERFIL (instalado / disponible en el servidor) =="
 (( OFFLINE )) || kiwix_cache_clear
-while IFS=$'\t' read -r carpeta prefijo; do
+while IFS=$'\t' read -r p _ _ carpeta prefijo; do
+  recurso_activo "$p" || continue
   inst=$(zim_json_get "$prefijo" archivo 2>/dev/null || true)
   finst="-"; [[ -n $inst ]] && finst=$(kiwix_fecha "$inst")
   if (( OFFLINE )); then

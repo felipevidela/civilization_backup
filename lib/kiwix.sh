@@ -173,11 +173,13 @@ zim_installed_ok() {
   [[ $(stat -c %s "$dir/$nombre") == "$bytes" ]]
 }
 
-# Lee packs.conf: imprime "carpeta<TAB>prefijo" por línea activa.
+# Lee packs.conf: imprime "perfil<TAB>prioridad<TAB>categoria<TAB>carpeta<TAB>prefijo" por
+# línea no comentada (todas, activas o no; el llamador filtra con recurso_activo).
 packs_read() {
-  local archivo=$1
+  local archivo=$1 linea p pr c resto
   sed -E 's/#.*$//; s/[[:space:]]+$//; /^[[:space:]]*$/d' "$archivo" | while read -r linea; do
-    [[ $linea == */* ]] || continue
-    printf '%s\t%s\n' "${linea%%/*}" "${linea#*/}"
+    IFS=$'\t' read -r p pr c resto <<< "$(atributos_de_linea "$linea")"
+    [[ $resto == */* ]] || continue
+    printf '%s\t%s\t%s\t%s\t%s\n' "$p" "$pr" "$c" "${resto%%/*}" "${resto#*/}"
   done
 }
