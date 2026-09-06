@@ -1,298 +1,175 @@
-# arca — servidor de conocimiento offline
+# ARCA
 
-**arca** instala y mantiene, en un PC con Ubuntu 24.04, una copia local de Wikipedia y otras
-enciclopedias (archivos ZIM de Kiwix), manuales técnicos y médicos en PDF, mapas de Organic Maps,
-el software necesario para reinstalar todo sin internet y un modelo de lenguaje local. El PC queda
-como servidor de la red doméstica: cualquier teléfono o computador entra por `http://IP:8080`.
+Offline Civilization Recovery Archive. Archivo de recuperación de la civilización, fuera de línea.
 
-Está pensado para funcionar sin vigilancia: una sola orden instala todo aunque tarde días, se
-reanuda solo si se corta, se actualiza cada mes y se copia a un disco externo con un comando.
+ARCA instala y mantiene en un PC con Ubuntu 24.04 una biblioteca de hasta 1 TB con el mínimo
+práctico de conocimiento, herramientas, software y documentación para que una comunidad pueda
+pasar de la supervivencia y el saneamiento básico a la agricultura estable, la industria, la
+electricidad, la ciencia y la computación. Todo funciona sin internet una vez instalado y se
+consulta desde cualquier dispositivo de la red en `http://IP:8080`.
 
-## Requisitos
+La pregunta que decide qué entra: *¿cuántos años de redescubrimiento técnico, científico, médico
+o institucional ahorra este recurso?* ([docs/CONTENT_POLICY.md](docs/CONTENT_POLICY.md)).
 
-- Ubuntu 24.04 LTS recién instalado (Debian 12 funciona con aviso, sin probar).
-- Un usuario normal con `sudo`. 8 GB de RAM bastan (el modelo de lenguaje usa ~5 GB).
-- Dos discos, o uno grande con dos particiones:
-  - `/` (ext4), sistema: un SSD de 256 GB va perfecto, o una partición de 40 GB.
-  - `/srv/respaldo` (ext4 o exFAT), datos: 1 TB para el contenido por defecto; con 420 GB
-    hay que recortar `packs.conf` (ver más abajo). **Debe estar montada** ahí: el instalador
-    se niega a llenar la partición raíz.
-- Internet. La instalación completa descarga ~725 GB; con una conexión de 100 Mbit/s son
-  unas 17 horas de descarga pura, más lo que tarde el torrent en encontrar pares.
-
-Particionado recomendado en el instalador de Ubuntu ("Instalación manual"): SSD → EFI de
-512 MB y el resto ext4 en `/`; HDD de 1 TB → una partición ext4 en `/srv/respaldo`. Con un solo
-disco de 500 GB: 40 GB ext4 en `/` y el resto ext4 en `/srv/respaldo`.
-
-## Instalación
+## Inicio rápido
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/felipevidela/civilization_backup/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/felipevidela/civilization_backup/main/install.sh | sudo bash -s -- --profile recovery
 ```
 
 Para ver primero qué haría y cuánto pesa, sin descargar nada:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/felipevidela/civilization_backup/main/install.sh | sudo bash -s -- --dry-run
+curl -fsSL https://raw.githubusercontent.com/felipevidela/civilization_backup/main/install.sh | sudo bash -s -- --profile recovery --dry-run
 ```
 
-`install.sh` clona el repositorio en `/opt/arca` y ejecuta `setup.sh`, que trabaja por fases:
+Requisitos: Ubuntu 24.04 LTS, un usuario con `sudo`, 8 GB de RAM, un disco montado en
+`/srv/respaldo` (ext4 o exFAT) e internet durante la instalación. Recomendado: SSD para `/` y
+disco de 1 TB para `/srv/respaldo`. La instalación tarda de horas a días según el perfil y la
+conexión; conviene lanzarla dentro de `tmux`. Si se corta, `sudo /opt/arca/setup.sh` continúa
+donde quedó.
 
-| Fase | Qué hace |
-|---|---|
-| 0 | Verifica distro, sudo, red y montaje; calcula el espacio real consultando los servidores (+5 % de margen, `MARGEN_ESPACIO_PCT`) |
-| 1 | Crea `/srv/respaldo/{zim,manuales,libros,mapas,software,personal,.arca}` |
-| 2 | `apt install` kiwix-tools, zim-tools, aria2, calibre, keepassxc, gocryptfs, flatpak, rsync, python3, tmux…; Flatpak Kiwix y Organic Maps |
-| 3 | Descarga los ZIM de `packs.conf` (torrent con aria2, 3 a la vez, fallback HTTP, sha256) |
-| 4 | Descarga los PDF y recursos de `manuals.conf` |
-| 5 | Descarga los mapas `.mwm` de Organic Maps |
-| 6 | Software de rescate: .deb con dependencias, AppImage, APK, ISO de Ubuntu, llama.cpp + modelo + chat con la biblioteca, kit de IA desde cero |
-| 7 | Genera `library.xml` e instala `kiwix.service` en el puerto 8080 |
-| 8 | Desactiva suspensión, ignora la tapa del portátil, escribe el estado en `/etc/motd`, abre el puerto en ufw |
-| 9 | Instala el timer mensual de actualización |
-| 10 | Genera `/srv/respaldo/README.txt` con el inventario |
-| 11 | Muestra el resumen |
+## Perfiles
 
-Cada fase terminada se anota en `/srv/respaldo/.arca/state`. Si se corta la luz o cierras la
-terminal, vuelve a ejecutar `sudo /opt/arca/setup.sh`: salta lo hecho y reanuda las descargas a
-medias. Otras opciones: `--from N` (repite desde la fase N) y `--only N`.
+| Perfil | Tamaño real (2026-09) | Contenido |
+|---|---|---|
+| `core` | ~63 GB | Medicina austera y actual (Hesperian, MSF, OMS), agua y saneamiento, agricultura y conservación de alimentos (FAO, USDA), tecnología apropiada, reparación, Wikipedia en español, Wikipedia médica, LibreTexts, manuales de taller esenciales (Navy Machinery Repairman, NEETS), mapas regionales y del mundo, software para leerlo todo, modelo de lenguaje pequeño, referencia (unidades, constantes, tabla periódica). |
+| `recovery` | ~255 GB | core + Wikipedia en inglés con imágenes, manufactura, materiales, energía, electricidad, telecomunicaciones, construcción, instituciones, computación (DevDocs, Stack Exchange técnicos, código fuente fundamental), OpenStax, kit de IA, ISO de Ubuntu, modelo de lenguaje grande. |
+| `full` (por defecto) | ~480 GB | recovery + Khan Academy y CrashCourse (video), Wikisource, Wikiquote, textos fundacionales, Britannica 1911, Harvard Classics, Biblioteca de Autores Españoles, Stack Exchange de humanidades. Deja ~400 GB libres en 1 TB. |
+| extras | opcionales | `gutenberg-full` (206 GB), `stackoverflow-full` (107 GB), `wikipedia-fr` (50 GB), `wikipedia-en-nopic` (49 GB): `--extra nombre`. |
 
-El log completo queda en `/opt/arca/logs/` y en `/srv/respaldo/.arca/arca.log`. Los recursos que
-fallan no detienen la instalación: se anotan en `/srv/respaldo/.arca/failed.txt` y se reintentan
-en la siguiente actualización.
+```bash
+sudo /opt/arca/setup.sh --profile core
+sudo /opt/arca/setup.sh --profile full --extra gutenberg-full
+```
 
-## Qué contiene por defecto y cuánto pesa
+El perfil se recuerda en `/srv/respaldo/.arca/profile`; `update.sh` lo respeta. Cambiar a un
+perfil mayor descarga lo que falte; cambiar a uno menor no borra nada hasta ejecutar
+`update.sh --prune`.
 
-Tamaños reales de septiembre de 2026 (los ZIM crecen con cada versión):
+## Arquitectura
 
-| Contenido | Tamaño |
-|---|---|
-| Wikipedia inglés con imágenes (`wikipedia_en_all_maxi`) | 115 GB |
-| Wikipedia español con imágenes (`wikipedia_es_all_maxi`) | 38 GB |
-| Khan Academy (videos de matemáticas y ciencia, versión 2023) | 168 GB |
-| CrashCourse (videos de ciencia, historia, biología, química) | 21 GB |
-| Wikipedia médica, mdwiki, guías zimgit (medicina, agua, comida, post-desastre) | 5 GB |
-| LibreTexts (ingeniería, química, biología, física, matemáticas, medicina) | 7 GB |
-| Wikiversity EN/ES, Wikiquote EN/ES, Vikidia (niños) ES/EN, EcuRed (enciclopedia ES) | 7 GB |
-| Wikispecies, World Factbook, Energypedia, TruePrepper, Appropedia, WikiCiv y otros | 7 GB |
-| Project Gutenberg inglés (`gutenberg_en_all`) | 206 GB |
-| Wiktionary EN/ES, Wikibooks EN/ES, Wikisource EN/ES, Gutenberg ES | 35 GB |
-| iFixit, Appropedia, PhET | 4 GB |
-| Stack Exchange (electrónica, bricolaje, física, matemáticas, química) | 15 GB |
-| Stack Overflow completo (`stackoverflow.com_en_all`) | 107 GB |
-| 50 Stack Exchange más (biología, jardinería, mecánica, ingeniería, historia, filosofía, Linux…) y DevDocs | 25 GB |
-| Manuales PDF (Hesperian, MSF EN/ES, OMS, Gray's, Merck, CD3WD, Machinery's, NASA, FM, FAO, MIT OCW) | 2 GB |
-| Britannica 1911 (30 tomos), Harvard Classics (51 vol.), Biblioteca de Autores Españoles (55 tomos) | 9 GB |
-| OpenStax: libros de texto universitarios en español (11) e inglés (73) en PDF | 5 GB |
-| IA desde cero: 5 libros, 24 artículos fundacionales, código de referencia, ruedas de PyTorch | 1 GB |
-| Descubrimientos fundacionales: 40 textos originales (Euclides, Copérnico, Newton, Darwin, Maxwell, Turing…) | 1 GB |
-| Mapas de Chile, Argentina, Perú y Bolivia | 1.6 GB |
-| Software: .deb, AppImage, APK, ISO de Ubuntu 24.04, llama.cpp, modelos Qwen2.5 7B y 3B | 15 GB |
-| **Total aproximado** | **~800 GB** |
+`setup.sh` ejecuta 12 fases reanudables (prerrequisitos y espacio, carpetas, paquetes, ZIM,
+manuales, mapas, software, servicio Kiwix, sistema, timer, documentación e integridad,
+resumen). Tres archivos deciden el contenido, cada línea con `perfil prioridad categoria`:
 
-En un disco de 1 TB quedan unos 80 GB libres (la fase 1 baja al 1 % los bloques reservados de ext4,
-que por defecto se comen 45 GB). Al actualizar, la versión nueva de un ZIM se
-descarga entera antes de borrar la vieja; si no caben las dos (Wikipedia inglés, Khan Academy,
-Gutenberg, Stack Overflow), `ZIM_BORRAR_VIEJO_SI_NO_CABE=1` en `software.conf` hace que se borre
-la vieja primero y ese ZIM falte mientras dura la descarga. Con `0` se conserva la vieja y se
-anota el error. La fase 0 comprueba el espacio con tamaños reales y, si no cabe, dice exactamente
-qué líneas de `packs.conf` comentar. Para un disco de 420 GB: comenta `gutenberg_en_all`,
-`stackoverflow.com_en_all`, `khanacademy_en_all` y `crashcourse_en_all`, y cambia
-`wikipedia_en_all_maxi` por `wikipedia_en_all_nopic` (49 GB).
+- `packs.conf`: ZIM de Kiwix (`carpeta/prefijo`, se resuelve la versión más reciente).
+- `manuals.conf`: PDF, libros, datos y código fuente (`destino | url | descripción | licencia`,
+  con esquemas `ia://`, `ocw://`, `openstax://`, `github://`, `kernel://`).
+- `software.conf`: paquetes, modelos de lenguaje, mapas, opciones y `SOFT_PERFILES`.
 
-## Cómo editar `packs.conf`, `manuals.conf` y `software.conf`
+Detalle completo en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-Los tres archivos viven en `/opt/arca/` y se editan con cualquier editor (`sudo nano`). Las
-líneas que empiezan con `#` están desactivadas. Tras editar, ejecuta `sudo /opt/arca/update.sh`.
+## Qué hay en el disco
 
-- **`packs.conf`**: un ZIM por línea, `carpeta/prefijo` tal como aparece en
-  <https://download.kiwix.org/zim/>. Ejemplo: `wikipedia/wikipedia_fr_all_maxi`. El script elige
-  solo la fecha más reciente. Nombres que no existen en el servidor se anotan como error.
-  Al final del archivo hay opciones desactivadas (Wikipedia inglés sin imágenes, Wikipedia francés).
-- **`manuals.conf`**: `destino_relativo | url | descripción`. Admite URL directa, `ia://ITEM`
-  (archive.org), `ocw://slug` (MIT OpenCourseWare), `openstax://en|es` (catálogo OpenStax en PDF)
-  y `mirror://URL?max=N` (espejo HTML con wget). Si el destino termina en `/` es una carpeta.
-  Para añadir un libro de archive.org basta una línea `libros/carpeta/ | ia://identificador | título`.
-- **`software.conf`**: `clave=valor`. Aquí se cambia el modelo de lenguaje (`LLM_MODEL_REPO`,
-  `LLM_MODEL_FILE`, cualquier GGUF de Hugging Face), se desactiva la ISO o el LLM (`=0`) y se
-  eligen los países de los mapas (`MAPAS_PAISES`).
+```
+START_HERE.txt / _ES / _EN / .html   empieza aquí (legible sin ningún programa)
+MANIFEST.tsv                          todos los archivos con sha256, origen, licencia y prioridad
+zim/         enciclopedias y cursos (Kiwix)       manuales/   PDF por dominio, con LEEME en cada carpeta
+libros/      textos fundacionales, clásicos, OpenStax        referencia/  unidades, constantes, tablas
+mapas/       Organic Maps + Natural Earth          software/   instaladores, código fuente, IA
+docs/        TECH_TREE, RECOVERY_ROADMAP, DIGITAL_FORMATS    bootstrap/  mínimo para reabrir el archivo
+recovery/    paridad PAR2 del núcleo crítico       personal/   tus archivos
+```
 
-Si al ampliar `packs.conf` deja de caber, `update.sh` lo dirá antes de descargar.
+Guías: [docs/TECH_TREE.md](docs/TECH_TREE.md) (qué depende de qué),
+[docs/RECOVERY_ROADMAP.md](docs/RECOVERY_ROADMAP.md) (niveles 0-7),
+[docs/DIGITAL_FORMATS.md](docs/DIGITAL_FORMATS.md) (cómo interpretar los archivos),
+[docs/fundacionales.md](docs/fundacionales.md), [docs/ia-desde-cero.md](docs/ia-desde-cero.md).
 
-## Usar desde otros dispositivos
+## Usar
 
-El estado y la IP aparecen al entrar por terminal (motd) y con `sudo /opt/arca/check.sh`.
+- **Navegador**: `http://IP-DEL-PC:8080` (la IP aparece al iniciar sesión). Kiwix Android y
+  Organic Maps están en `software/`.
+- **Buscar en PDF y documentos**: `arca-search "filtro lento de arena"` (índice SQLite FTS5 con
+  página; `sudo arca-index` lo actualiza, `--ocr` para PDF escaneados si instalas ocrmypdf).
+- **Preguntar a la IA con la biblioteca**: `/srv/respaldo/software/llm/preguntar.sh "¿cómo se
+  hace jabón?"` combina Kiwix y el índice local y cita las fuentes. En medicina, agua y química
+  solo responde con fuentes (`SOURCE_ONLY`); si no las hay, dice que no está en la biblioteca.
+  `--rapido` usa el modelo de 3B. `chat.sh` es el chat libre; `chat.sh --server` da una web en el
+  puerto 8081.
+- **Estado**: `sudo /opt/arca/check.sh` (perfil, disco, integridad, contenido por prioridad,
+  índice, copias, servicios, errores).
 
-- **Navegador** (cualquier dispositivo en la misma red): `http://IP-DEL-PC:8080`.
-- **Kiwix Android** (`/srv/respaldo/software/kiwix/*.apk`): en la app, "Servidor remoto" con la
-  misma URL, o copia al teléfono los ZIM pequeños (por ejemplo `wikipedia_en_medicine_maxi`).
-- **Organic Maps** (`software/organicmaps/*.apk`): copia los `.mwm` de `/srv/respaldo/mapas/` a
-  la carpeta de mapas de la app (Ajustes → Carpeta de mapas) o descárgalos desde la propia app.
-- **Modelo de lenguaje**: `/srv/respaldo/software/llm/preguntar.sh` abre un chat que busca en
-  la biblioteca (Kiwix) antes de responder y cita los artículos usados; si no encuentra nada,
-  responde con su propio conocimiento y lo avisa. `chat.sh` es el chat libre y
-  `chat.sh --server` da una interfaz web en `http://IP-DEL-PC:8081`.
-- **Calibre**: abre Calibre y elige como biblioteca `/srv/respaldo/libros/`. Tus EPUB sin DRM van
-  en `/srv/respaldo/libros/propios/`.
+## Integridad
 
-Para darle IP fija al servidor, resérvala en el router (DHCP estático) por su dirección MAC.
+```bash
+sudo /opt/arca/check.sh --scrub         # sha256 de todo contra MANIFEST.tsv (offline, lento)
+sudo /opt/arca/check.sh --scrub-quick   # solo existencia y tamaño
+sudo /opt/arca/repair.sh --verify       # paridad PAR2 del núcleo crítico
+sudo /opt/arca/repair.sh --repair       # repara (solo bajo petición)
+```
+
+El scrub no modifica nada; deja el informe en `.arca/scrub-FECHA.log`. Archivos sin hash
+conocido se reportan como `UNVERIFIED`. Sin el sistema instalado: `sha256sum -c
+bootstrap/SHA256SUMS` y `par2 verify -B /srv/respaldo recovery/bootstrap.par2`.
+
+## Copias de seguridad
+
+```bash
+sudo /opt/arca/backup.sh --mirror /media/usuario/DISCO      # réplica exacta (propaga borrados)
+sudo /opt/arca/backup.sh --snapshot /media/usuario/DISCO    # DISCO/arca-AAAA-MM-DD, hardlinks
+```
+
+Mirror replica el estado actual con `rsync --delete`. Snapshot conserva estados históricos:
+cada carpeta es completa, lo que no cambió se enlaza a la anterior y no ocupa espacio; `ultimo`
+apunta al más reciente; ningún snapshot anterior se modifica. Funciona en ext4 y exFAT.
 
 ## Actualizar
 
 ```bash
-sudo /opt/arca/update.sh --check     # qué hay nuevo y cuánto pesa, sin descargar
-sudo /opt/arca/update.sh             # actualizar todo
-sudo /opt/arca/update.sh --zim-only  # solo enciclopedias
-sudo /opt/arca/update.sh --no-software
+sudo /opt/arca/update.sh --check   # qué hay nuevo, cuánto pesa, qué está fuera del perfil
+sudo /opt/arca/update.sh           # ZIM nuevos, manuales cambiados, software con release nueva
+sudo /opt/arca/update.sh --prune   # lista lo que ya no pertenece al perfil y pide confirmación
 ```
 
-`update.sh` descarga la versión nueva de cada ZIM, la verifica y solo entonces borra la anterior:
-el disco nunca se queda sin una versión funcional. Al terminar escribe un resumen en
-`/opt/arca/logs/update-AAAAMMDD.log`.
+Un ZIM nuevo se descarga entero y se verifica antes de borrar el viejo. Con
+`MARGEN_ESPACIO_PCT=15` y `ZIM_BORRAR_VIEJO_SI_NO_CABE=0` (por defecto) nunca se queda sin una
+versión funcional. El timer `arca-update.timer` corre cada mes;
+`sudo systemctl disable --now arca-update.timer` lo detiene.
 
-El timer `arca-update.timer` lo ejecuta una vez al mes (si el PC estaba apagado, al siguiente
-arranque). Para desactivarlo:
+## Restaurar
 
-```bash
-sudo systemctl disable --now arca-update.timer
-```
+Con el disco montado en `/srv/respaldo` y sin internet: instala Ubuntu desde `software/iso/`,
+`cd software/deb && sudo dpkg -i *.deb`, `tar xf bootstrap/arca-src.tar -C /opt` y
+`sudo /opt/arca/setup.sh --profile <el tuyo> --from 7`. Sin nada instalado: el `kiwix-serve`
+estático de `bootstrap/` sirve los ZIM desde cualquier Linux. Todo está en `START_HERE.txt`.
 
-y para volver a activarlo, `sudo systemctl enable --now arca-update.timer`.
+## Personalizar y proponer contenido
 
-## Respaldar a un disco externo
+Edita `packs.conf`, `manuals.conf` o `software.conf` en `/opt/arca` y ejecuta
+`sudo /opt/arca/update.sh`. Cada recurso lleva perfil, prioridad (P0 esencial, P1 muy
+importante, P2 complementario, P3 cultural), categoría y licencia; `setup.sh --dry-run`
+resuelve la URL y muestra el tamaño real antes de descargar. Criterios en
+[docs/CONTENT_POLICY.md](docs/CONTENT_POLICY.md); procedencia en
+[docs/SOURCES_AND_LICENSES.md](docs/SOURCES_AND_LICENSES.md). Recursos que no tienen descarga
+automática (Hesperian en español, Feynman, Standard Ebooks, Where There Is No Vet) están
+documentados como TODO en `manuals.conf`.
 
-```bash
-sudo /opt/arca/backup.sh /media/tu-usuario/DISCO-EXTERNO
-sudo /opt/arca/backup.sh            # sin ruta: lista los discos montados y pide elegir
-sudo /opt/arca/backup.sh /ruta --yes  # sin confirmación
-```
+## Migrar una instalación anterior
 
-Copia `/srv/respaldo/` completo con `rsync --delete` (lo borrado en origen se borra en destino),
-muestra antes qué va a hacer y cuánto espacio necesita, y al terminar escribe `BACKUP-INFO.txt`
-en el destino y hace `sync`. Con el contenido por defecto hace falta un disco externo de 1 TB
-(ext4 o exFAT).
+`setup.sh` reconoce el estado previo: mueve los manuales a las carpetas nuevas
+(`manuales/medicina/actual`, `manuales/agua`, ...), registra en el manifiesto lo que ya
+existe y marca como `extra` lo que no pertenece al perfil elegido. No borra nada por sí solo;
+`update.sh --prune` muestra qué liberaría y pide confirmación (`--yes` para omitirla).
 
-## Restaurar en un PC nuevo sin internet
+## Pruebas
 
-Con el disco (o la copia externa) montado en `/srv/respaldo`:
-
-1. Instala Ubuntu 24.04 desde `software/iso/ubuntu-24.04.*-desktop-amd64.iso` (grábala en un USB
-   con `dd` o Balena Etcher).
-2. Instala Kiwix y utilidades desde los .deb:
-   `cd /srv/respaldo/software/deb && sudo dpkg -i *.deb; sudo apt-get -f install`.
-   Alternativa sin dpkg: `software/kiwix/kiwix-tools_linux-x86_64-musl-*.tar.gz` trae
-   `kiwix-serve` estático.
-3. Restaura el repositorio y el servicio:
-   ```bash
-   sudo git clone /srv/respaldo/software/arca.git /opt/arca
-   sudo /opt/arca/setup.sh --from 7
-   ```
-   (`git` viene en los .deb; si no lo tienes, `sudo cp -r` de un clon hecho en otro PC sirve igual).
-4. Si no quieres servicio, lanza a mano:
-   `kiwix-serve --library /srv/respaldo/library.xml --port 8080 --address 0.0.0.0`.
-
-`/srv/respaldo/README.txt` repite estas instrucciones en texto plano, con el inventario y las
-fechas de cada archivo, para que estén disponibles aunque solo tengas el disco.
-
-## Preguntar a la IA con la biblioteca
-
-```bash
-/srv/respaldo/software/llm/preguntar.sh                       # interactivo
-/srv/respaldo/software/llm/preguntar.sh "¿cómo se hace jabón con ceniza?"
-```
-
-Por cada pregunta busca en los ZIM con el buscador de Kiwix (en español y en inglés), extrae
-el texto de los artículos más relevantes, se lo entrega al modelo junto con la pregunta y
-muestra la respuesta con las fuentes y sus enlaces. Dentro del chat: `/solo` desactiva la
-búsqueda, `/fuentes N` cambia cuántos artículos usa. Solo consulta los ZIM; los PDF de
-`manuales/` no están indexados.
-
-Se incluyen dos modelos: Qwen2.5-7B (mejor calidad, 4.7 GB) y Qwen2.5-3B (`--rapido`, 1.8 GB).
-En un i3 de 4 núcleos con 8 GB de RAM el 7B tarda 2 o 3 minutos por respuesta con búsqueda y
-conviene no tener abiertos Calibre ni muchas pestañas del navegador; el 3B responde en menos de
-un minuto y basta para la mayoría de preguntas. llama.cpp se compila optimizado para el
-procesador del PC donde se instala; para usarlo en otro, recompila desde `software/llm/llama.cpp`.
-
-## Cómo crear una IA desde cero
-
-`/srv/respaldo/software/ia/LEEME.md` es una guía de ruta que enlaza todo lo necesario y que
-el disco contiene: matemáticas (Mathematics for Machine Learning, OpenStax), libros libres de
-aprendizaje profundo (Dive into Deep Learning, Understanding Deep Learning, Fleuret, Jurafsky),
-los 24 artículos fundacionales en PDF (retropropagación 1986, AlexNet, word2vec, Adam, el
-transformer de 2017, GPT-3, leyes de escala, LLaMA, RLHF, DPO, LoRA, Qwen2.5), el código de
-referencia clonado con historial (micrograd, minbpe, nanoGPT, llm.c, LLMs-from-scratch, ggml)
-y las ruedas de PyTorch y NumPy para instalarlas sin internet. El propio llama.cpp y el modelo
-GGUF incluidos son el resultado final del proceso.
-
-## Los textos que fundaron la ciencia
-
-`/srv/respaldo/libros/fundacionales/` reúne 40 obras originales de dominio público, de Euclides
-y Copérnico a Turing y Shannon, con la Declaración de Derechos Humanos en español e inglés y
-Darwin también en español. `LEEME.md` en esa carpeta ([docs/fundacionales.md](docs/fundacionales.md))
-explica en una tabla qué es cada obra y por qué importa, e indica dónde encontrar en los ZIM las
-obras de filosofía, religión y literatura.
-
-## Agregar libros propios a Calibre
-
-Copia tus EPUB o PDF sin DRM a `/srv/respaldo/libros/propios/`. En Calibre: menú "Biblioteca" →
-"Cambiar/crear biblioteca" → `/srv/respaldo/libros`, y luego "Añadir libros" apuntando a esa
-carpeta. Así los libros y la base de Calibre viajan en el mismo disco y entran en el respaldo.
-
-## Recursos que hay que bajar a mano
-
-Algunos recursos no tienen descarga automática estable; quedan documentados y comentados en
-`manuals.conf`:
-
-- **Hesperian en español** (*Donde no hay doctor*, *Donde no hay dentista*): descarga gratuita
-  con formulario en <https://store.hesperian.org>. Cópialos a `/srv/respaldo/manuales/medicina/`.
-  Las ediciones en inglés sí se descargan solas (copias en archive.org).
-- **Feynman Lectures on Physics**: Caltech prohíbe hacer espejos del sitio y su CDN bloquea las
-  descargas automáticas. Solo se puede leer en línea en <https://www.feynmanlectures.caltech.edu/>.
-- **Standard Ebooks**: la descarga en lote requiere ser miembro del Patrons Circle. Con esa
-  cuenta, baja los ZIP desde <https://standardebooks.org/bulk-downloads> a
-  `/srv/respaldo/libros/standard-ebooks/`. Sin ella, la literatura está en los ZIM de Gutenberg.
-- **Enciclopedia Espasa** (Enciclopedia universal ilustrada europeo-americana, 1908-1930): hay
-  tomos sueltos en archive.org con nombres irregulares (unos 4 GB por tomo escaneado). Si quieres
-  alguno, añade su identificador como línea `ia://` en `manuals.conf`.
-- **Hesperian en español**: ver arriba. La literatura clásica en español está cubierta por
-  Wikisource ES, Gutenberg ES y la Biblioteca de Autores Españoles (55 tomos).
+`./tests/run.sh` (en Ubuntu, sin red ni root): sintaxis y shellcheck de todos los scripts,
+perfiles, parseo, manifiesto, argumentos y un `--dry-run` con fixtures.
 
 ## Solución de problemas
 
-- **"No está montado /srv/respaldo"**: `lsblk` para ver la partición y añádela a `/etc/fstab`
-  (`UUID=... /srv/respaldo ext4 defaults 0 2`), luego `sudo mount -a`.
-- **"No cabe"**: comenta en `packs.conf` las líneas que indica el mensaje y relanza.
-- **Una descarga falla o va muy lenta por torrent**: aria2 pasa solo a HTTP a los 10 minutos sin
-  pares. Para forzar HTTP siempre: `sudo KIWIX_USE_TORRENT=0 /opt/arca/setup.sh`.
-- **Se cortó la instalación**: vuelve a ejecutar `sudo /opt/arca/setup.sh`; continúa donde quedó.
-- **kiwix no responde**: `sudo systemctl status kiwix`, `journalctl -u kiwix -n 50`. Si
-  `library.xml` está corrupta, `sudo /opt/arca/setup.sh --only 7` la regenera.
-- **No se ve desde otros dispositivos**: comprueba que están en la misma red, que el puerto 8080
-  está abierto (`sudo ufw status`) y que la IP es la que muestra `check.sh`.
-- **El modelo de lenguaje no arranca o va lentísimo**: el 7B necesita ~5.5 GB de RAM libres.
-  Cierra Calibre y el navegador, o usa `preguntar.sh --rapido` / `chat.sh --rapido` (modelo de 3B).
-- **"Ya hay un proceso en ejecución"**: otro `setup.sh`/`update.sh` está corriendo (mira
-  `ps aux | grep arca`). Si es un lock huérfano, el script lo detecta y lo reemplaza solo.
+- **No cabe**: elige un perfil menor, quita extras o comenta líneas; la fase 0 dice cuáles.
+- **/srv/respaldo no está montado**: `lsblk`, añade la partición a `/etc/fstab`, `sudo mount -a`.
+- **Kiwix no responde**: `sudo systemctl status kiwix`; `sudo /opt/arca/setup.sh --only 7`.
+- **La IA va lenta o no arranca**: usa `--rapido`; necesita 3 GB (3B) o 6 GB (7B) de RAM libres.
 - **Errores pendientes**: `cat /srv/respaldo/.arca/failed.txt`; se reintentan con `update.sh`.
-
-## Estructura del repositorio
-
-```
-install.sh      bootstrap para curl | sudo bash
-setup.sh        instalación por fases (reanudable)
-update.sh       actualización (la ejecuta el timer)
-backup.sh       copia a disco externo
-check.sh        estado e inventario
-packs.conf      ZIM a descargar
-manuals.conf    PDF y recursos sueltos
-software.conf   software de rescate, mapas y LLM
-lib/            log, espacio, estado/lock, descargas, kiwix, fases, README.txt, motd
-llm/            preguntar.py: chat con búsqueda en la biblioteca
-docs/           ia-desde-cero.md y fundacionales.md: guías que se copian al disco como LEEME.md
-systemd/        kiwix.service, arca-update.{service,timer}, arca-motd.service
-```
+- **Wi-Fi USB Realtek RTL8822BU cuelga el arranque**: desconéctalo para instalar; luego
+  `sudo apt full-upgrade` o el driver `morrownr/88x2bu-20210702`.
 
 ## Licencia
 
-MIT. Los contenidos descargados tienen cada uno su propia licencia (CC BY-SA en Wikipedia,
-dominio público en archive.org, etc.); consulta la de cada fuente antes de redistribuirlos.
+MIT para los scripts. Cada contenido conserva su licencia (CC BY-SA en Wikimedia, dominio
+público en archive.org y publicaciones del gobierno de EE. UU., CC BY-NC-SA en OMS y FAO);
+consulta `MANIFEST.tsv` y `docs/SOURCES_AND_LICENSES.md` en el disco.

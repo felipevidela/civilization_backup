@@ -403,3 +403,40 @@ AGUA
 
 TXT
 }
+
+# docs/SOURCES_AND_LICENSES.md en el disco: procedencia y licencias agrupadas, desde el manifiesto.
+sources_licenses_generar() {
+  local salida="$RESPALDO/docs/SOURCES_AND_LICENSES.md"
+  [[ -s $MANIFEST_OUT ]] || return 0
+  mkdir -p "$RESPALDO/docs"
+  {
+    echo "# Fuentes y licencias del contenido instalado"
+    echo
+    echo "Generado por ARCA el $(date '+%Y-%m-%d') a partir de MANIFEST.tsv (perfil ${ARCA_PERFIL:-?})."
+    echo "Cada archivo conserva la licencia de su autor u organismo; 'unknown' significa que ARCA no pudo"
+    echo "confirmarla (consulta el propio documento). Wikipedia y proyectos Wikimedia: CC BY-SA 4.0;"
+    echo "archive.org: dominio público salvo indicación; OMS y FAO: CC BY-NC-SA 3.0 IGO; gobierno de"
+    echo "EE. UU. (USDA, USGS, NASA, ejército, marina, FEMA, NIST): dominio público."
+    echo
+    echo "## Resumen por licencia"
+    echo
+    echo "| Licencia | Archivos | Tamaño |"
+    echo "|---|---|---|"
+    awk -F'\t' 'NR>1 && $12!="missing" {n[$8]++; b[$8]+=$2} END{for (l in n) printf "%s\t%d\t%d\n", l, n[l], b[l]}' "$MANIFEST_OUT" \
+      | sort -t$'\t' -k3,3rn | while IFS=$'\t' read -r l n b; do printf '| %s | %d | %s |\n' "$l" "$n" "$(human "$b")"; done
+    echo
+    echo "## Resumen por origen"
+    echo
+    echo "| Origen (dominio) | Archivos |"
+    echo "|---|---|"
+    awk -F'\t' 'NR>1 && $12!="missing" {s=$4; sub(/^[a-z]+:\/\//,"",s); sub(/\/.*/,"",s); n[s]++} END{for (o in n) printf "%s\t%d\n", o, n[o]}' "$MANIFEST_OUT" \
+      | sort -t$'\t' -k2,2rn | head -40 | while IFS=$'\t' read -r o n; do printf '| %s | %d |\n' "$o" "$n"; done
+    echo
+    echo "## Detalle"
+    echo
+    echo "La lista completa (ruta, tamaño, sha256, origen, versión, fecha, idioma, licencia, prioridad,"
+    echo "categoría, perfil, estado) está en \`MANIFEST.tsv\` en la raíz del disco; se abre con cualquier"
+    echo "editor de texto u hoja de cálculo."
+  } > "$salida.tmp"
+  mv "$salida.tmp" "$salida"
+}

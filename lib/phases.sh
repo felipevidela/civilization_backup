@@ -914,6 +914,7 @@ fase_10() {
   manifest_rebuild
   manifest_generate
   leemes_instalar
+  sources_licenses_generar
   log_ok "MANIFEST.tsv: $(awk 'END{print NR-1}' "$MANIFEST_OUT") entradas."
   bootstrap_generar
   log_ok "bootstrap/ regenerado ($(human "$(space_used_bytes "$RESPALDO/bootstrap")"))."

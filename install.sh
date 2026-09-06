@@ -3,8 +3,10 @@
 #   curl -fsSL https://raw.githubusercontent.com/felipevidela/civilization_backup/main/install.sh | sudo bash
 #
 # Verifica distro, root e internet; instala git y curl; clona (o actualiza) el repo en
-# /opt/arca y ejecuta setup.sh con los argumentos recibidos (por ejemplo --dry-run):
-#   curl -fsSL .../install.sh | sudo bash -s -- --dry-run
+# /opt/arca y ejecuta setup.sh con los argumentos recibidos:
+#   curl -fsSL .../install.sh | sudo bash -s -- --profile recovery
+#   curl -fsSL .../install.sh | sudo bash -s -- --profile core --dry-run
+# Perfiles: core (≈60 GB), recovery (≈255 GB), full (≈480 GB, por defecto); extras con --extra.
 #
 # Todo va dentro de main() para que una descarga cortada a medias no ejecute nada.
 set -euo pipefail
