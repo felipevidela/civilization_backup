@@ -8,6 +8,7 @@
 #   ocw://slug-del-curso               ZIP completo del curso en MIT OpenCourseWare
 #   mirror://https://sitio/ruta/?max=N  espejo HTML con wget, límite N GB
 #   openstax://en | openstax://es      todos los libros de texto OpenStax en PDF (inglés o español)
+#   github://usuario/repo/REGEX        asset de la última release de GitHub que cumpla la REGEX
 #
 # Requiere lib/log.sh y lib/space.sh cargados.
 
@@ -163,6 +164,10 @@ fetch_resource_size() {
     openstax://*)
       while IFS=$'\t' read -r _ u; do n=$(fetch_size "$u" 2>/dev/null || echo 0); total=$((total + n)); done < <(fetch_openstax_list "${url#openstax://}")
       echo "$total" ;;
+    github://*)
+      local rest=${url#github://} repo re
+      repo=$(cut -d/ -f1-2 <<< "$rest"); re=${rest#"$repo"/}
+      fetch_github_asset "$repo" "$re" | cut -f3 ;;
     *)
       fetch_size "$url" ;;
   esac
@@ -213,6 +218,14 @@ fetch_resource() {
       local u=${url#mirror://} max=1
       if [[ $u == *\?max=* ]]; then max=${u##*max=}; u=${u%\?max=*}; fi
       if fetch_mirror "$u" "$destino" "$max"; then total=$(space_used_bytes "$destino"); else rc=1; fi ;;
+    github://*)
+      local rest=${url#github://} repo re info nombre u dest
+      repo=$(cut -d/ -f1-2 <<< "$rest"); re=${rest#"$repo"/}
+      info=$(fetch_github_asset "$repo" "$re") || true
+      IFS=$'\t' read -r _ nombre _ u <<< "$info"
+      [[ -n $u ]] || { log_error "No hay asset que cumpla '$re' en la última release de $repo"; echo 0; return 1; }
+      dest=$destino; [[ $destino == */ ]] && dest="$destino$nombre"
+      if fetch_file "$u" "$dest"; then total=$(stat -c %s "$dest"); else rc=1; fi ;;
     openstax://*)
       local titulo u dest n=0
       mkdir -p "$destino"

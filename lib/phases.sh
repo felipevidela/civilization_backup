@@ -145,6 +145,10 @@ estimar_pendiente() {
     [[ -x "$dir_soft/llm/llama.cpp/build/bin/llama-cli" ]] && estado=instalado || estado=pendiente
     printf 'software\tllama.cpp (fuentes+binarios)\t800000000\t%s\n' "$estado"
   }
+  [[ ${IA_ENABLED:-1} == 1 ]] && {
+    [[ -d "$dir_soft/ia/codigo" ]] && estado=instalado || estado=pendiente
+    printf 'software\tIA desde cero (código + ruedas Python)\t400000000\t%s\n' "$estado"
+  }
   [[ -d "$dir_soft/deb" ]] && estado=instalado || estado=pendiente
   printf 'software\tpaquetes .deb con dependencias\t1500000000\t%s\n' "$estado"
   printf 'software\tAppImage, APKs, kiwix-tools\t450000000\t%s\n' "$([[ -d $dir_soft/kiwix ]] && echo instalado || echo pendiente)"
@@ -257,8 +261,8 @@ fase_2() {
   export DEBIAN_FRONTEND=noninteractive
   log_info "apt-get update..."
   log_cmd apt-get update -qq || log_warn "apt-get update terminó con errores; se intenta instalar igual."
-  local paquetes=(kiwix-tools aria2 calibre keepassxc gocryptfs flatpak rsync jq curl wget
-                  build-essential cmake git dpkg-dev)
+  local paquetes=(kiwix-tools zim-tools aria2 calibre keepassxc gocryptfs flatpak rsync jq curl wget
+                  build-essential cmake git dpkg-dev python3 python3-pip python3-venv tmux)
   log_info "apt-get install ${paquetes[*]} (puede tardar varios minutos)..."
   log_cmd apt-get install -y -qq -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold "${paquetes[@]}" \
     || die "Falló apt-get install. Revisa el log: $ARCA_LOG_FILE"
@@ -620,6 +624,71 @@ fi
 exec "\$DIR/llama.cpp/build/bin/llama-cli" -m "\$MODELO" -c 4096 -cnv --color -p "Eres un asistente útil. Responde en el idioma del usuario."
 CHAT
   chmod +x "$dir/chat.sh"
+  if [[ ${LLM_PREGUNTAR:-1} == 1 ]]; then
+    cp "$ARCA_DIR/llm/preguntar.py" "$dir/preguntar.py"
+    cat > "$dir/preguntar.sh" <<PREG
+#!/usr/bin/env bash
+# Chat con la biblioteca: busca en Kiwix (puerto $PUERTO) y responde con el modelo local.
+# Uso: ./preguntar.sh            (interactivo)   |   ./preguntar.sh "¿cómo se hace jabón?"
+set -euo pipefail
+DIR="\$(cd "\$(dirname "\$0")" && pwd)"
+export ARCA_KIWIX_URL="\${ARCA_KIWIX_URL:-http://localhost:$PUERTO}"
+export ARCA_LLAMA_URL="\${ARCA_LLAMA_URL:-http://localhost:8081}"
+export ARCA_MODELO="\$DIR/modelos/$LLM_MODEL_FILE"
+export ARCA_LLAMA_BIN="\$DIR/llama.cpp/build/bin/llama-server"
+exec python3 "\$DIR/preguntar.py" "\$@"
+PREG
+    chmod +x "$dir/preguntar.sh"
+  fi
+}
+
+# Cómo crear una IA desde cero: guía, código de referencia y ruedas de Python.
+_soft_ia() {
+  [[ ${IA_ENABLED:-1} == 1 ]] || return 0
+  local dir="$RESPALDO/software/ia" repo nombre
+  mkdir -p "$dir/codigo" "$dir/wheels"
+  cp "$ARCA_DIR/docs/ia-desde-cero.md" "$dir/LEEME.md"
+  for repo in ${IA_REPOS:-}; do
+    nombre=${repo#*/}
+    if [[ -d "$dir/codigo/$nombre/.git" ]]; then
+      log_cmd git -C "$dir/codigo/$nombre" pull -q --ff-only || log_warn "No se pudo actualizar $repo"
+    else
+      log_info "Clonando $repo..."
+      if log_cmd git clone -q "https://github.com/$repo.git" "$dir/codigo/$nombre"; then
+        failed_del "software:ia:$repo"
+      else
+        rm -rf "$dir/codigo/$nombre"; failed_add "software:ia:$repo" "clonado fallido"
+      fi
+    fi
+  done
+  if [[ -n ${IA_WHEELS:-} ]] && command -v pip3 > /dev/null; then
+    if [[ -z $(find "$dir/wheels" -name 'torch-*.whl' -print -quit 2>/dev/null) ]]; then
+      log_info "Descargando ruedas de Python (CPU, x86_64): $IA_WHEELS"
+      # shellcheck disable=SC2086
+      if log_cmd pip3 download $IA_WHEELS --dest "$dir/wheels" --index-url https://download.pytorch.org/whl/cpu \
+           --extra-index-url https://pypi.org/simple --platform manylinux_2_28_x86_64 --platform manylinux2014_x86_64 \
+           --python-version 3.12 --only-binary=:all:; then
+        failed_del "software:ia:wheels"
+      else
+        failed_add "software:ia:wheels" "pip download fallido"
+      fi
+    fi
+    cat > "$dir/wheels/LEEME.txt" <<'TXT'
+Ruedas de Python (CPU, x86_64, Python 3.12) para instalar sin internet en Ubuntu 24.04:
+  python3 -m venv ~/ia && source ~/ia/bin/activate
+  pip install --no-index --find-links /srv/respaldo/software/ia/wheels torch numpy tiktoken
+TXT
+  fi
+  cat > "$dir/LEEME-codigo.txt" <<'TXT'
+Código de referencia (clones completos con historial):
+  micrograd         motor de gradientes en 100 líneas (Karpathy)
+  minbpe            tokenizador BPE (Karpathy)
+  nanoGPT           GPT-2 en ~300 líneas de PyTorch (Karpathy)
+  llm.c             entrenar GPT-2 en C puro, CPU o GPU (Karpathy)
+  LLMs-from-scratch código del libro "Build a Large Language Model (From Scratch)" (Raschka)
+  ggml              librería numérica de llama.cpp
+Empieza por LEEME.md.
+TXT
 }
 
 _soft_mirror_repo() {
@@ -649,6 +718,7 @@ fase_6() {
   _soft_organicmaps
   _soft_iso
   _soft_llm
+  _soft_ia
   _soft_mirror_repo
   chown_respaldo "$RESPALDO/software" "$SOFTWARE_JSON"
   log_ok "Software de rescate en $RESPALDO/software."

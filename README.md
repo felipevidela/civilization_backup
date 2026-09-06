@@ -42,11 +42,11 @@ curl -fsSL https://raw.githubusercontent.com/felipevidela/civilization_backup/ma
 |---|---|
 | 0 | Verifica distro, sudo, red y montaje; calcula el espacio real consultando los servidores (+5 % de margen, `MARGEN_ESPACIO_PCT`) |
 | 1 | Crea `/srv/respaldo/{zim,manuales,libros,mapas,software,personal,.arca}` |
-| 2 | `apt install` kiwix-tools, aria2, calibre, keepassxc, gocryptfs, flatpak, rsync…; Flatpak Kiwix y Organic Maps |
+| 2 | `apt install` kiwix-tools, zim-tools, aria2, calibre, keepassxc, gocryptfs, flatpak, rsync, python3, tmux…; Flatpak Kiwix y Organic Maps |
 | 3 | Descarga los ZIM de `packs.conf` (torrent con aria2, 3 a la vez, fallback HTTP, sha256) |
 | 4 | Descarga los PDF y recursos de `manuals.conf` |
 | 5 | Descarga los mapas `.mwm` de Organic Maps |
-| 6 | Software de rescate: .deb con dependencias, AppImage, APK, ISO de Ubuntu, llama.cpp + modelo |
+| 6 | Software de rescate: .deb con dependencias, AppImage, APK, ISO de Ubuntu, llama.cpp + modelo + chat con la biblioteca, kit de IA desde cero |
 | 7 | Genera `library.xml` e instala `kiwix.service` en el puerto 8080 |
 | 8 | Desactiva suspensión, ignora la tapa del portátil, escribe el estado en `/etc/motd`, abre el puerto en ufw |
 | 9 | Instala el timer mensual de actualización |
@@ -84,6 +84,7 @@ Tamaños reales de septiembre de 2026 (los ZIM crecen con cada versión):
 | Manuales PDF (Hesperian, MSF EN/ES, OMS, Gray's, Merck, CD3WD, Machinery's, NASA, FM, FAO, MIT OCW) | 2 GB |
 | Britannica 1911 (30 tomos), Harvard Classics (51 vol.), Biblioteca de Autores Españoles (55 tomos) | 9 GB |
 | OpenStax: libros de texto universitarios en español (11) e inglés (73) en PDF | 5 GB |
+| IA desde cero: 5 libros, 24 artículos fundacionales, código de referencia, ruedas de PyTorch | 1 GB |
 | Mapas de Chile, Argentina, Perú y Bolivia | 1.6 GB |
 | Software: .deb, AppImage, APK, ISO de Ubuntu 24.04, llama.cpp, modelo Qwen2.5-7B Q4_K_M | 13 GB |
 | **Total aproximado** | **~800 GB** |
@@ -126,8 +127,10 @@ El estado y la IP aparecen al entrar por terminal (motd) y con `sudo /opt/arca/c
   misma URL, o copia al teléfono los ZIM pequeños (por ejemplo `wikipedia_en_medicine_maxi`).
 - **Organic Maps** (`software/organicmaps/*.apk`): copia los `.mwm` de `/srv/respaldo/mapas/` a
   la carpeta de mapas de la app (Ajustes → Carpeta de mapas) o descárgalos desde la propia app.
-- **Modelo de lenguaje**: `/srv/respaldo/software/llm/chat.sh` (terminal) o
-  `chat.sh --server` para una interfaz web en `http://IP-DEL-PC:8081`.
+- **Modelo de lenguaje**: `/srv/respaldo/software/llm/preguntar.sh` abre un chat que busca en
+  la biblioteca (Kiwix) antes de responder y cita los artículos usados; si no encuentra nada,
+  responde con su propio conocimiento y lo avisa. `chat.sh` es el chat libre y
+  `chat.sh --server` da una interfaz web en `http://IP-DEL-PC:8081`.
 - **Calibre**: abre Calibre y elige como biblioteca `/srv/respaldo/libros/`. Tus EPUB sin DRM van
   en `/srv/respaldo/libros/propios/`.
 
@@ -190,6 +193,30 @@ Con el disco (o la copia externa) montado en `/srv/respaldo`:
 `/srv/respaldo/README.txt` repite estas instrucciones en texto plano, con el inventario y las
 fechas de cada archivo, para que estén disponibles aunque solo tengas el disco.
 
+## Preguntar a la IA con la biblioteca
+
+```bash
+/srv/respaldo/software/llm/preguntar.sh                       # interactivo
+/srv/respaldo/software/llm/preguntar.sh "¿cómo se hace jabón con ceniza?"
+```
+
+Por cada pregunta busca en los ZIM con el buscador de Kiwix (en español y en inglés), extrae
+el texto de los artículos más relevantes, se lo entrega al modelo Qwen2.5-7B junto con la
+pregunta y muestra la respuesta con las fuentes y sus enlaces. Dentro del chat: `/solo`
+desactiva la búsqueda, `/fuentes N` cambia cuántos artículos usa. Cada respuesta tarda entre
+30 segundos y 2 minutos en CPU. Solo consulta los ZIM; los PDF de `manuales/` no están indexados.
+
+## Cómo crear una IA desde cero
+
+`/srv/respaldo/software/ia/LEEME.md` es una guía de ruta que enlaza todo lo necesario y que
+el disco contiene: matemáticas (Mathematics for Machine Learning, OpenStax), libros libres de
+aprendizaje profundo (Dive into Deep Learning, Understanding Deep Learning, Fleuret, Jurafsky),
+los 24 artículos fundacionales en PDF (retropropagación 1986, AlexNet, word2vec, Adam, el
+transformer de 2017, GPT-3, leyes de escala, LLaMA, RLHF, DPO, LoRA, Qwen2.5), el código de
+referencia clonado con historial (micrograd, minbpe, nanoGPT, llm.c, LLMs-from-scratch, ggml)
+y las ruedas de PyTorch y NumPy para instalarlas sin internet. El propio llama.cpp y el modelo
+GGUF incluidos son el resultado final del proceso.
+
 ## Agregar libros propios a Calibre
 
 Copia tus EPUB o PDF sin DRM a `/srv/respaldo/libros/propios/`. En Calibre: menú "Biblioteca" →
@@ -245,6 +272,8 @@ packs.conf      ZIM a descargar
 manuals.conf    PDF y recursos sueltos
 software.conf   software de rescate, mapas y LLM
 lib/            log, espacio, estado/lock, descargas, kiwix, fases, README.txt, motd
+llm/            preguntar.py: chat con búsqueda en la biblioteca
+docs/           ia-desde-cero.md: guía para construir una IA con lo que hay en el disco
 systemd/        kiwix.service, arca-update.{service,timer}, arca-motd.service
 ```
 

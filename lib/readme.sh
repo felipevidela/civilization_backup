@@ -90,8 +90,10 @@ Luego abre http://IP-DEL-PC:8080 desde cualquier navegador de la red.
 
 CÓMO USAR EL MODELO DE LENGUAJE LOCAL
 -------------------------------------
-  /srv/respaldo/software/llm/chat.sh              # chat en la terminal (CPU, ~5 GB RAM)
+  /srv/respaldo/software/llm/preguntar.sh         # chat que busca en la biblioteca y cita fuentes
+  /srv/respaldo/software/llm/chat.sh              # chat libre en la terminal (CPU, ~5 GB RAM)
   /srv/respaldo/software/llm/chat.sh --server     # API HTTP en http://IP:8081 (interfaz web incluida)
+Cómo construir una IA desde cero: /srv/respaldo/software/ia/LEEME.md
 Si el binario no funciona en otro PC, recompila: cd software/llm/llama.cpp && cmake -B build && cmake --build build -j
 
 CÓMO RESTAURAR TODO EN UN PC NUEVO
