@@ -302,7 +302,14 @@ fase_0() {
   if (( necesario > libre )); then
     local deficit=$(( necesario - libre ))
     log_error "No cabe: faltan $(human "$deficit")."
-    echo "Elige un perfil menor (--profile recovery / core), quita extras, o comenta en $PACKS_CONF alguna de estas líneas hasta liberar $(human "$deficit"):"
+    local menor
+    case $ARCA_PERFIL in
+      full) menor="--profile recovery, --profile core o --profile survive" ;;
+      recovery) menor="--profile core o --profile survive" ;;
+      core) menor="--profile survive" ;;
+      *) menor="" ;;
+    esac
+    echo "Opciones: ${menor:+usar un perfil menor ($menor), }quitar extras, o comentar en $PACKS_CONF alguna de estas líneas hasta liberar $(human "$deficit"):"
     awk -F'\t' '$1=="zim" && $4=="pendiente"{print $3"\t"$2}' <<< "$tabla" | sort -rn | head -8 \
       | while IFS=$'\t' read -r b n; do printf '   %-60s %s\n' "$n" "$(human "$b")"; done || true
     return 1
