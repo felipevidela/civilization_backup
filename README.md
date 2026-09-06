@@ -17,8 +17,8 @@ reanuda solo si se corta, se actualiza cada mes y se copia a un disco externo co
   - `/srv/respaldo` (ext4 o exFAT), datos: 1 TB para el contenido por defecto; con 420 GB
     hay que recortar `packs.conf` (ver más abajo). **Debe estar montada** ahí: el instalador
     se niega a llenar la partición raíz.
-- Internet. La instalación completa descarga ~615 GB; con una conexión de 100 Mbit/s son
-  unas 15 horas de descarga pura, más lo que tarde el torrent en encontrar pares.
+- Internet. La instalación completa descarga ~725 GB; con una conexión de 100 Mbit/s son
+  unas 17 horas de descarga pura, más lo que tarde el torrent en encontrar pares.
 
 Particionado recomendado en el instalador de Ubuntu ("Instalación manual"): SSD → EFI de
 512 MB y el resto ext4 en `/`; HDD de 1 TB → una partición ext4 en `/srv/respaldo`. Con un solo
@@ -76,16 +76,18 @@ Tamaños reales de septiembre de 2026 (los ZIM crecen con cada versión):
 | Wiktionary EN/ES, Wikibooks EN/ES, Wikisource EN/ES, Gutenberg ES | 35 GB |
 | iFixit, Appropedia, PhET | 4 GB |
 | Stack Exchange (electrónica, bricolaje, física, matemáticas, química) | 15 GB |
+| Stack Overflow completo (`stackoverflow.com_en_all`) | 107 GB |
 | Manuales PDF (Hesperian, MSF, OMS, Gray's, Merck, CD3WD, Machinery's, NASA, FM, FAO, MIT OCW) | 2 GB |
 | Mapas de Chile, Argentina, Perú y Bolivia | 1.6 GB |
 | Software: .deb, AppImage, APK, ISO de Ubuntu 24.04, llama.cpp, modelo Qwen2.5-7B Q4_K_M | 13 GB |
-| **Total aproximado** | **~615 GB** |
+| **Total aproximado** | **~725 GB** |
 
-En un disco de 1 TB quedan unos 265 GB libres, margen necesario porque al actualizar cada ZIM
-nuevo se descarga entero antes de borrar el viejo (Khan Academy solo ya pesa 168 GB). La fase 0
-lo comprueba con tamaños reales y, si no cabe, dice exactamente qué líneas de `packs.conf`
-comentar. Para un disco de 420 GB: comenta `gutenberg_en_all` y cambia `wikipedia_en_all_maxi`
-por `wikipedia_en_all_nopic` (49 GB); queda en ~340 GB.
+En un disco de 1 TB quedan unos 160 GB libres. Al actualizar, cada ZIM nuevo se descarga entero
+antes de borrar el viejo, así que una versión nueva de Khan Academy (168 GB) no cabría hasta
+liberar espacio; `update.sh` lo avisa y sigue con el resto. La fase 0 comprueba el espacio con
+tamaños reales y, si no cabe, dice exactamente qué líneas de `packs.conf` comentar. Para un disco
+de 420 GB: comenta `gutenberg_en_all`, `stackoverflow.com_en_all` y `khanacademy_en_all` o
+cambia `wikipedia_en_all_maxi` por `wikipedia_en_all_nopic` (49 GB).
 
 ## Cómo editar `packs.conf`, `manuals.conf` y `software.conf`
 
@@ -95,8 +97,7 @@ líneas que empiezan con `#` están desactivadas. Tras editar, ejecuta `sudo /op
 - **`packs.conf`**: un ZIM por línea, `carpeta/prefijo` tal como aparece en
   <https://download.kiwix.org/zim/>. Ejemplo: `wikipedia/wikipedia_fr_all_maxi`. El script elige
   solo la fecha más reciente. Nombres que no existen en el servidor se anotan como error.
-  Al final del archivo hay opciones desactivadas (Stack Overflow, Wikipedia inglés sin imágenes,
-  Wikipedia francés).
+  Al final del archivo hay opciones desactivadas (Wikipedia inglés sin imágenes, Wikipedia francés).
 - **`manuals.conf`**: `destino_relativo | url | descripción`. Admite URL directa, `ia://ITEM`
   (archive.org), `ocw://slug` (MIT OpenCourseWare) y `mirror://URL?max=N` (espejo HTML con wget).
   Si el destino termina en `/` es una carpeta.
