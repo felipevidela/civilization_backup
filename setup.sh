@@ -52,7 +52,7 @@ SOFTWARE_CONF="${SOFTWARE_CONF:-$ARCA_DIR/software.conf}"
 MODO_UPDATE=0
 export ARCA_DIR RESPALDO ARCA_STATE_DIR ARCA_TMP ARCA_LOG_DIR ARCA_LOG_COPY USUARIO PACKS_CONF MANUALS_CONF SOFTWARE_CONF DRY_RUN MODO_UPDATE
 
-for lib in log space state profiles fetch kiwix readme phases; do
+for lib in log space state profiles fetch kiwix readme docs manifest phases; do
   # shellcheck disable=SC1090
   source "$ARCA_DIR/lib/$lib.sh"
 done

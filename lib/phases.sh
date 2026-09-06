@@ -354,7 +354,7 @@ fase_2() {
   log_info "apt-get update..."
   log_cmd apt-get update -qq || log_warn "apt-get update terminó con errores; se intenta instalar igual."
   local paquetes=(kiwix-tools zim-tools aria2 calibre keepassxc gocryptfs flatpak rsync jq curl wget
-                  build-essential cmake git dpkg-dev python3 python3-pip python3-venv tmux)
+                  build-essential cmake git dpkg-dev python3 python3-pip python3-venv tmux par2 poppler-utils)
   log_info "apt-get install ${paquetes[*]} (puede tardar varios minutos)..."
   log_cmd apt-get install -y -qq -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold "${paquetes[@]}" \
     || die "Falló apt-get install. Revisa el log: $ARCA_LOG_FILE"
@@ -904,11 +904,23 @@ fase_9() {
 # ---------------------------------------------------------------- fase 10
 
 fase_10() {
-  log_titulo "Fase 10: README.txt del disco"
+  log_titulo "Fase 10: documentación, manifiesto, bootstrap y paridad"
   readme_generar
+  docs_generar
+  log_ok "README.txt, START_HERE (ES/EN/HTML) y docs/ generados."
+  log_info "Actualizando el manifiesto (hashea solo archivos nuevos o cambiados; puede tardar unos minutos)..."
+  manifest_rebuild
+  manifest_generate
+  log_ok "MANIFEST.tsv: $(awk 'END{print NR-1}' "$MANIFEST_OUT") entradas."
+  bootstrap_generar
+  log_ok "bootstrap/ regenerado ($(human "$(space_used_bytes "$RESPALDO/bootstrap")"))."
+  if command -v par2 > /dev/null; then
+    "$ARCA_DIR/repair.sh" --create || log_warn "La paridad PAR2 terminó con avisos (ver log)."
+  else
+    log_warn "par2 no está instalado; sin paridad PAR2 (sudo apt install par2)."
+  fi
   date -Is > "$ARCA_STATE_DIR/ultima-actualizacion"
-  chown_respaldo "$RESPALDO/README.txt" "$ARCA_STATE_DIR"
-  log_ok "$RESPALDO/README.txt generado."
+  chown_respaldo "$RESPALDO/README.txt" "$ARCA_STATE_DIR" "$RESPALDO/recovery"
   systemd_ok && "$ARCA_DIR/lib/motd.sh" 2>/dev/null || true
 }
 
